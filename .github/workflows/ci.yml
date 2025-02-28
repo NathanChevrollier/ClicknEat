@@ -15,6 +15,18 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
+            sudo git config --global --add safe.directory ${{ secrets.PROJECT_PATH }}
             cd ${{ secrets.PROJECT_PATH }}
-            sudo git pull
+            sudo git pull origin main
             composer upgrade
+            php artisan migrate
+
+
+            # Correction des permissions Laravel
+            sudo chown -R www-data:www-data ${{ secrets.PROJECT_PATH }}/storage
+            sudo chmod -R 775 ${{ secrets.PROJECT_PATH }}/storage
+            sudo chown -R www-data:www-data ${{ secrets.PROJECT_PATH }}/bootstrap/cache
+            sudo chmod -R 775 ${{ secrets.PROJECT_PATH }}/bootstrap/cache
+
+            sudo systemctl restart php8.2-fpm
+            sudo systemctl restart nginx
