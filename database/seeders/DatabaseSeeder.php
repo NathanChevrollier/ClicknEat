@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\Restaurant;
 use App\Models\Category;
+use App\Models\Item;
+
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -32,5 +34,7 @@ class DatabaseSeeder extends Seeder
         Restaurant::factory(3)->create();
         
         Category::factory(12)->create();
+
+        Item::factory(20)->create();
     }
 }
