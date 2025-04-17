@@ -1,0 +1,31 @@
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+
+$app = require_once __DIR__.'/bootstrap/app.php';
+
+// Bootstrap the application
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$response = $kernel->handle(
+    $request = Illuminate\Http\Request::capture()
+);
+
+// Get the database connection
+$db = $app->make('db');
+
+try {
+    // Vérifier si les colonnes existent déjà
+    $columnsExist = $db->select("SHOW COLUMNS FROM restaurants LIKE 'is_open'");
+    
+    if (empty($columnsExist)) {
+        // Ajouter les colonnes is_open et accepts_reservations
+        $db->statement("ALTER TABLE restaurants ADD COLUMN is_open BOOLEAN DEFAULT 1 AFTER description");
+        $db->statement("ALTER TABLE restaurants ADD COLUMN accepts_reservations BOOLEAN DEFAULT 1 AFTER is_open");
+        
+        echo "Colonnes 'is_open' et 'accepts_reservations' ajoutées avec succès à la table 'restaurants'.\n";
+    } else {
+        echo "Les colonnes existent déjà dans la table 'restaurants'.\n";
+    }
+} catch (Exception $e) {
+    echo "Erreur lors de l'ajout des colonnes : " . $e->getMessage() . "\n";
+}

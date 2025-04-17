@@ -1,52 +1,131 @@
-<x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
-        @csrf
+<x-auth-layout>
+    <!-- Register Card -->
+    <div class="card">
+        <div class="card-body">
+            <!-- Logo -->
+            <div class="app-brand justify-content-center">
+                <a href="{{ route('dashboard') }}" class="app-brand-link gap-2">
+                    <span class="app-brand-text demo text-body fw-bolder">Click'n Eat</span>
+                </a>
+            </div>
 
-        <!-- Name -->
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
-        </div>
+            <h4 class="mb-2">L'aventure commence ici 🚀</h4>
+            <p class="mb-4">Créez votre compte pour profiter de Click'n Eat!</p>
 
-        <!-- Email Address -->
-        <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+            <form id="formAuthentication" class="mb-3" method="POST" action="{{ route('register') }}">
+                @csrf
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+                <!-- Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">Nom</label>
+                    <input
+                        type="text"
+                        class="form-control @error('name') is-invalid @enderror"
+                        id="name"
+                        name="name"
+                        placeholder="Entrez votre nom"
+                        value="{{ old('name') }}"
+                        autofocus
+                    />
+                    @error('name')
+                        <div class="invalid-feedback">
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
 
-            <x-text-input id="password" class="block mt-1 w-full"
+                <!-- Email -->
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input
+                        type="text"
+                        class="form-control @error('email') is-invalid @enderror"
+                        id="email"
+                        name="email"
+                        placeholder="Entrez votre email"
+                        value="{{ old('email') }}"
+                    />
+                    @error('email')
+                        <div class="invalid-feedback">
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
+
+                <!-- Role -->
+                <div class="mb-3">
+                    <label for="role" class="form-label">Type de compte</label>
+                    <select 
+                        class="form-select @error('role') is-invalid @enderror" 
+                        id="role" 
+                        name="role"
+                    >
+                        <option value="client" {{ old('role') == 'client' ? 'selected' : '' }}>Client</option>
+                        <option value="restaurateur" {{ old('role') == 'restaurateur' ? 'selected' : '' }}>Restaurateur</option>
+                    </select>
+                    @error('role')
+                        <div class="invalid-feedback">
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3 form-password-toggle">
+                    <label class="form-label" for="password">Mot de passe</label>
+                    <div class="input-group input-group-merge">
+                        <input
                             type="password"
+                            id="password"
+                            class="form-control @error('password') is-invalid @enderror"
                             name="password"
-                            required autocomplete="new-password" />
+                            placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
+                            aria-describedby="password"
+                        />
+                        <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
+                        @error('password')
+                            <div class="invalid-feedback">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+                </div>
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
+                <!-- Confirm Password -->
+                <div class="mb-3 form-password-toggle">
+                    <label class="form-label" for="password_confirmation">Confirmez le mot de passe</label>
+                    <div class="input-group input-group-merge">
+                        <input
                             type="password"
-                            name="password_confirmation" required autocomplete="new-password" />
+                            id="password_confirmation"
+                            class="form-control"
+                            name="password_confirmation"
+                            placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
+                        />
+                        <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
+                    </div>
+                </div>
 
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="terms-conditions" name="terms" />
+                        <label class="form-check-label" for="terms-conditions">
+                            J'accepte les
+                            <a href="javascript:void(0);">conditions d'utilisation</a>
+                        </label>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary d-grid w-100">S'inscrire</button>
+            </form>
+
+            <p class="text-center">
+                <span>Vous avez déjà un compte?</span>
+                <a href="{{ route('login') }}">
+                    <span>Connectez-vous</span>
+                </a>
+            </p>
         </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('login') }}">
-                {{ __('Already registered?') }}
-            </a>
-
-            <x-primary-button class="ms-4">
-                {{ __('Register') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+    </div>
+    <!-- Register Card -->
+</x-auth-layout>
