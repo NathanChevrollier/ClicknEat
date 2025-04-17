@@ -1,5 +1,5 @@
 <?php
-
+//test auto
 namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;

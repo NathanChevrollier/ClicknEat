@@ -16,15 +16,7 @@ jobs:
       - name: Add VPS key to known_hosts
         run: |
           mkdir -p ~/.ssh
-          echo "[51.89.150.209]:6666 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbS5vbm9uZQAAAAAAAAAAAAAAZAtzc2gtZWQyNTUxOXoAAACA9Y/c5DFN642G9zQYeKxMquhhxoro2Kz65sbRv9OBBAAAAj/jKcIv4ynG6BRtS5ChFng/nGMNXzdIcgQAAAEAvus+l2wnCLzHbUoDPowyBT3J1PK9ElnrPzpDiBveROwoD1i/9zkMU3rYb3NBh4rEyq6GHGiujMrbPrltG/04EEAAADmpdgGh1Yi1hY3Rpb25zAQIDBAUGBw==" >> ~/.ssh/known_hosts
-
-      - name: Test SSH manually
-        run: |
-          echo "$PRIVATE_KEY" > id_test_key
-          chmod 600 id_test_key
-          ssh -i id_test_key -p 6666 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_IP }} "echo ✅ Connexion SSH réussie !"
-        env:
-          PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          echo "[51.89.150.209]:6666 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP4UWxTGWJczjsMCy0TTI7spTiBi3gTekT3qbUSk/G85" >> ~/.ssh/known_hosts
 
       - name: Push to server
         uses: appleboy/ssh-action@master
@@ -34,11 +26,16 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 6666
           script: |
-            cd /var/www/html/${{ secrets.PROJECT_PATH }}
-            git pull origin main
-            composer install --no-interaction --prefer-dist --optimize-autoloader
-            php artisan migrate --force
-            php artisan config:cache
-            php artisan route:cache
+            sudo git config --global --add safe.directory ${{ secrets.PROJECT_PATH }}
+            cd ${{ secrets.PROJECT_PATH }}
+            sudo git pull origin main
+            composer upgrade
+            php artisan migrate
+
+            sudo chown -R www-data:www-data ${{ secrets.PROJECT_PATH }}/storage
+            sudo chmod -R 775 ${{ secrets.PROJECT_PATH }}/storage
+            sudo chown -R www-data:www-data ${{ secrets.PROJECT_PATH }}/bootstrap/cache
+            sudo chmod -R 775 ${{ secrets.PROJECT_PATH }}/bootstrap/cache
+
             sudo systemctl restart php8.2-fpm
             sudo systemctl restart nginx
