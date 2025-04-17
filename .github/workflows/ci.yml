@@ -16,7 +16,7 @@ jobs:
       - name: Add VPS key to known_hosts
         run: |
           mkdir -p ~/.ssh
-          echo "51.89.150.209 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3/PBT3J1PK9ENnPzpDiBveROwoD1i/9zkMU3rYb3NBh4rEyq" >> ~/.ssh/known_hosts
+          echo "[51.89.150.209]:6666 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbS5vbm9uZQAAAAAAAAAAAAAAZAtzc2gtZWQyNTUxOXoAAACA9Y/c5DFN642G9zQYeKxMquhhxoro2Kz65sbRv9OBBAAAAj/jKcIv4ynG6BRtS5ChFng/nGMNXzdIcgQAAAEAvus+l2wnCLzHbUoDPowyBT3J1PK9ElnrPzpDiBveROwoD1i/9zkMU3rYb3NBh4rEyq6GHGiujMrbPrltG/04EEAAADmpdgGh1Yi1hY3Rpb25zAQIDBAUGBw==" >> ~/.ssh/known_hosts
 
       - name: Test SSH manually
         run: |
@@ -34,7 +34,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 6666
           script: |
-            cd ${{ secrets.PROJECT_PATH }}
+            cd /var/www/html/${{ secrets.PROJECT_PATH }}
             git pull origin main
             composer install --no-interaction --prefer-dist --optimize-autoloader
             php artisan migrate --force
