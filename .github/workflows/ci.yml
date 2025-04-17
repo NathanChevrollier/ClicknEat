@@ -16,9 +16,7 @@ jobs:
       - name: Add VPS key to known_hosts
         run: |
           mkdir -p ~/.ssh
-          echo "[51.89.150.209]:6666 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..." >> ~/.ssh/known_hosts
-        # Remplace le contenu AAAA... par celui obtenu via :
-        # ssh-keyscan -p 6666 51.89.150.209
+          echo "51.89.150.209 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB3/PBT3J1PK9ENnPzpDiBveROwoD1i/9zkMU3rYb3NBh4rEyq" >> ~/.ssh/known_hosts
 
       - name: Test SSH manually
         run: |
