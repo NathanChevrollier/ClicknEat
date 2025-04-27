@@ -68,17 +68,17 @@
                     </li>
                     
                     <!-- Gestion des restaurants -->
-                    <li class="menu-item {{ request()->routeIs('admin.restaurants') ? 'active' : '' }}">
-                        <a href="{{ route('admin.restaurants') }}" class="menu-link">
+                    <li class="menu-item {{ request()->routeIs('admin.restaurants.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.restaurants.index') }}" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-store"></i>
                             <div>Gestion restaurants</div>
                         </a>
                     </li>
                     
                     <!-- Gestion des commandes -->
-                    <li class="menu-item {{ request()->routeIs('admin.orders') ? 'active' : '' }}">
-                        <a href="{{ route('admin.orders') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-cart"></i>
+                    <li class="menu-item {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.orders.index') }}" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-receipt"></i>
                             <div>Gestion commandes</div>
                         </a>
                     </li>

@@ -152,16 +152,16 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="{{ route('admin.items.show', $item->id) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ route('admin.items.show', ['restaurant_id' => $restaurant->id, 'item_id' => $item->id]) }}" class="btn btn-sm btn-info">
                                         <i class="bx bx-show me-1"></i> Voir
                                     </a>
-                                    <a href="{{ route('admin.items.edit', $item->id) }}" class="btn btn-sm btn-primary">
+                                    <a href="{{ route('admin.items.edit', ['restaurant_id' => $restaurant->id, 'item_id' => $item->id]) }}" class="btn btn-sm btn-primary">
                                         <i class="bx bx-edit-alt me-1"></i> Modifier
                                     </a>
                                     <a href="#" class="btn btn-sm btn-danger" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir supprimer ce plat ?')) document.getElementById('delete-item-{{ $item->id }}').submit();">
                                         <i class="bx bx-trash me-1"></i> Supprimer
                                     </a>
-                                    <form id="delete-item-{{ $item->id }}" action="{{ route('admin.items.destroy', $item->id) }}" method="POST" style="display: none;">
+                                    <form id="delete-item-{{ $item->id }}" action="{{ route('admin.items.destroy', ['restaurant_id' => $restaurant->id, 'item_id' => $item->id]) }}" method="POST" style="display: none;">
                                         @csrf
                                         @method('DELETE')
                                     </form>

@@ -63,14 +63,14 @@
                                         <i class="bx bx-dots-vertical-rounded"></i>
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-end">
-                                        <a class="dropdown-item" href="{{ route('orders.show', $order->id) }}">
+                                        <a class="dropdown-item" href="{{ route('admin.orders.show', $order->id) }}">
                                             <i class="bx bx-show me-1"></i> Détails
                                         </a>
                                         @if(in_array($order->status, ['pending', 'confirmed']))
                                         <a class="dropdown-item" href="#" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) document.getElementById('cancel-order-{{ $order->id }}').submit();">
                                             <i class="bx bx-x-circle me-1"></i> Annuler
                                         </a>
-                                        <form id="cancel-order-{{ $order->id }}" action="{{ route('orders.cancel', $order->id) }}" method="POST" style="display: none;">
+                                        <form id="cancel-order-{{ $order->id }}" action="{{ route('admin.orders.cancel', $order->id) }}" method="POST" style="display: none;">
                                             @csrf
                                             @method('PATCH')
                                         </form>

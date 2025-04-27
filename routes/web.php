@@ -114,27 +114,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Routes pour les administrateurs
-    Route::middleware(['admin'])->group(function () {
-        Route::get('/admin/dashboard', function () {
-            return view('admin.dashboard');
-        })->name('admin.dashboard');
-        
-        Route::get('/admin/users', [AdminController::class, 'users'])->name('admin.users');
-        Route::get('/admin/restaurants', [AdminController::class, 'restaurants'])->name('admin.restaurants');
-        Route::get('/admin/categories', [AdminController::class, 'categories'])->name('admin.categories');
-        Route::get('/admin/orders', [AdminController::class, 'orders'])->name('admin.orders');
-        Route::get('/admin/reservations', [AdminController::class, 'reservations'])->name('admin.reservations');
-        Route::get('/admin/reviews', [AdminController::class, 'reviews'])->name('admin.reviews');
+    Route::prefix('admin')
+        ->middleware(['admin'])
+        ->name('admin.')
+        ->group(function () {
+            Route::get('/dashboard', function () {
+                return view('admin.dashboard');
+            })->name('dashboard');
+            
+            // Gestion complète des utilisateurs admin (CRUD)
+            Route::resource('users', App\Http\Controllers\Admin\UserController::class);
 
-        // Catégories (admin)
-        Route::resource('admin/categories', AdminCategoryController::class, ['as' => 'admin']);
+            Route::get('/restaurants', [AdminController::class, 'restaurants'])->name('restaurants');
+            Route::get('/categories', [AdminController::class, 'categories'])->name('categories');
+            Route::get('/orders', [AdminController::class, 'orders'])->name('admin.orders.index');
+            Route::get('/reservations', [AdminController::class, 'reservations'])->name('reservations');
+            Route::get('/reviews', [AdminController::class, 'reviews'])->name('reviews');
 
-        // Plats (admin)
-        Route::resource('admin/items', AdminItemController::class, ['as' => 'admin']);
+            // Catégories (admin)
+            Route::resource('categories', AdminCategoryController::class);
 
-        // Menus (admin)
-        Route::resource('admin/menus', AdminMenuController::class, ['as' => 'admin']);
-    });
+            // Plats (admin)
+            Route::resource('items', AdminItemController::class);
+
+            // Menus (admin)
+            Route::resource('menus', AdminMenuController::class);
+
+            // Gestion complète des commandes admin (CRUD)
+            Route::resource('orders', App\Http\Controllers\Admin\OrderController::class);
+
+            // Gestion complète des restaurants admin (CRUD)
+            Route::resource('restaurants', App\Http\Controllers\Admin\RestaurantController::class);
+        });
 });
 
 // Routes pour les réservations

@@ -193,7 +193,7 @@
                                             <ul class="dropdown-menu w-100" aria-labelledby="categoryRestaurantDropdown">
                                                 @foreach($restaurants as $restaurant)
                                                     <li>
-                                                        <a class="dropdown-item" href="{{ route('categories.index', ['restaurant_id' => $restaurant->id]) }}">
+                                                        <a class="dropdown-item" href="{{ route('admin.categories.index', ['restaurant_id' => $restaurant->id]) }}">
                                                             {{ $restaurant->name }}
                                                         </a>
                                                     </li>
@@ -219,7 +219,7 @@
                                             <ul class="dropdown-menu w-100" aria-labelledby="itemRestaurantDropdown">
                                                 @foreach($restaurants as $restaurant)
                                                     <li>
-                                                        <a class="dropdown-item" href="{{ route('items.index', ['restaurant_id' => $restaurant->id]) }}">
+                                                        <a class="dropdown-item" href="{{ route('admin.items.index', ['restaurant_id' => $restaurant->id]) }}">
                                                             {{ $restaurant->name }}
                                                         </a>
                                                     </li>
@@ -245,7 +245,7 @@
                                             <ul class="dropdown-menu w-100" aria-labelledby="menuRestaurantDropdown">
                                                 @foreach($restaurants as $restaurant)
                                                     <li>
-                                                        <a class="dropdown-item" href="{{ route('menus.index', ['restaurant_id' => $restaurant->id]) }}">
+                                                        <a class="dropdown-item" href="{{ route('admin.menus.index', ['restaurant_id' => $restaurant->id]) }}">
                                                             {{ $restaurant->name }}
                                                         </a>
                                                     </li>

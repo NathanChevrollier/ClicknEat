@@ -40,13 +40,13 @@
                                 <a href="{{ route('admin.restaurants.show', $restaurant->id) }}" class="btn btn-sm btn-info">
                                     <i class="bx bx-show me-1"></i> Voir
                                 </a>
-                                <a href="{{ route('restaurants.edit', $restaurant->id) }}" class="btn btn-sm btn-primary">
+                                <a href="{{ route('admin.restaurants.edit', $restaurant->id) }}" class="btn btn-sm btn-primary">
                                     <i class="bx bx-edit-alt me-1"></i> Modifier
                                 </a>
                                 <a href="#" class="btn btn-sm btn-danger" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir supprimer ce restaurant ?')) document.getElementById('delete-restaurant-{{ $restaurant->id }}').submit();">
                                     <i class="bx bx-trash me-1"></i> Supprimer
                                 </a>
-                                <form id="delete-restaurant-{{ $restaurant->id }}" action="{{ route('restaurants.destroy', $restaurant->id) }}" method="POST" style="display: none;">
+                                <form id="delete-restaurant-{{ $restaurant->id }}" action="{{ route('admin.restaurants.destroy', $restaurant->id) }}" method="POST" style="display: none;">
                                     @csrf
                                     @method('DELETE')
                                     <input type="hidden" name="id" value="{{ $restaurant->id }}">
