@@ -159,7 +159,7 @@ class AdminController extends Controller
     public function showRestaurant($id)
     {
         $this->checkAdmin();
-        $restaurant = Restaurant::with(['user', 'categories', 'menus', 'menus.items'])->findOrFail($id);
+        $restaurant = Restaurant::with(['user', 'categories', 'items', 'menus', 'menus.items'])->findOrFail($id);
         
         // Récupérer les plats du restaurant
         $items = Item::whereHas('category', function($query) use ($id) {

@@ -93,8 +93,10 @@ class MenuController extends Controller
             'restaurant_id' => $request->restaurant_id,
         ]);
         
-        // Associer les plats au menu
-        $menu->items()->attach($request->items);
+        // Associer les plats au menu en mettant à jour leur menu_id
+        if ($request->has('items')) {
+            Item::whereIn('id', $request->items)->update(['menu_id' => $menu->id]);
+        }
         
         return redirect()->route('admin.menus.index')
             ->with('success', 'Menu créé avec succès');
@@ -158,8 +160,13 @@ class MenuController extends Controller
             'restaurant_id' => $request->restaurant_id,
         ]);
         
-        // Mettre à jour les plats associés
-        $menu->items()->sync($request->items);
+        // Dissocier les plats actuellement associés à ce menu
+        Item::where('menu_id', $menu->id)->update(['menu_id' => null]);
+        
+        // Associer les nouveaux plats au menu
+        if ($request->has('items')) {
+            Item::whereIn('id', $request->items)->update(['menu_id' => $menu->id]);
+        }
         
         return redirect()->route('admin.menus.index')
             ->with('success', 'Menu mis à jour avec succès');
@@ -172,8 +179,8 @@ class MenuController extends Controller
     {
         $this->checkAdmin();
         
-        // Détacher d'abord les plats associés (relation many-to-many)
-        $menu->items()->detach();
+        // Dissocier les plats associés à ce menu en mettant leur menu_id à null
+        Item::where('menu_id', $menu->id)->update(['menu_id' => null]);
         
         // Supprimer le menu
         $menu->delete();

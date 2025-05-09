@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Restaurant;
 use App\Models\Item;
 use App\Models\Category;
+use App\Models\Menu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -52,5 +53,28 @@ class RestaurantApiController extends Controller
         $categories = Category::where('restaurant_id', $restaurantId)->get();
         
         return response()->json($categories);
+    }
+
+    /**
+     * Récupère les menus d'un restaurant
+     */
+    public function getMenus($restaurantId)
+    {
+        try {
+            // Vérifier que le restaurant existe
+            $restaurant = Restaurant::findOrFail($restaurantId);
+            
+            // Récupérer les menus du restaurant
+            $menus = Menu::where('restaurant_id', $restaurantId)
+                ->with('items')
+                ->get();
+            
+            return response()->json($menus);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -30,7 +30,7 @@
                     </div>
                     <div class="mb-3">
                         <strong>Statut:</strong> 
-                        @if($item->is_active)
+                        @if($item->is_available)
                             <span class="badge bg-success">Actif</span>
                         @else
                             <span class="badge bg-danger">Inactif</span>
@@ -59,23 +59,21 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <h5>Menus contenant ce plat</h5>
-                    @if($item->menus->count() > 0)
+                    <h5>Menu associé au plat</h5>
+                    @if(isset($item->menu) && $item->menu)
                         <div class="list-group">
-                            @foreach($item->menus as $menu)
-                                <div class="list-group-item list-group-item-action">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h6 class="mb-1">{{ e($menu->name) }}</h6>
-                                        <small>{{ number_format($menu->price / 100, 2, ',', ' ') }} €</small>
-                                    </div>
-                                    <p class="mb-1">{{ e(Str::limit($menu->description, 50)) }}</p>
-                                    <small>Restaurant: {{ e($menu->restaurant->name) }}</small>
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ e($item->menu->name) }}</h6>
+                                    <small>{{ number_format($item->menu->price / 100, 2, ',', ' ') }} €</small>
                                 </div>
-                            @endforeach
+                                <p class="mb-1">{{ e(Str::limit($item->menu->description, 50)) }}</p>
+                                <small>Restaurant: {{ e($item->menu->restaurant->name) }}</small>
+                            </div>
                         </div>
                     @else
                         <div class="alert alert-info">
-                            <i class="bx bx-info-circle me-1"></i> Ce plat n'est inclus dans aucun menu.
+                            <i class="bx bx-info-circle me-1"></i> Ce plat n'est associé à aucun menu.
                         </div>
                     @endif
                 </div>

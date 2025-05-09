@@ -95,6 +95,14 @@ class Restaurant extends Model
     }
     
     /**
+     * Menus du restaurant
+     */
+    public function menus()
+    {
+        return $this->hasMany(Menu::class);
+    }
+    
+    /**
      * Calcule la note moyenne du restaurant
      * 
      * @return float

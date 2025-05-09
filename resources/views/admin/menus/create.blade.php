@@ -138,7 +138,15 @@
                 // Charger les plats du restaurant sélectionné via AJAX
                 fetch(`/api/restaurants/${this.value}/items`)
                     .then(response => response.json())
-                    .then(data => {
+                    .then(response => {
+                        // Vérifier si la réponse est un succès
+                        if (!response.success) {
+                            throw new Error(response.message || 'Erreur lors du chargement des plats');
+                        }
+                        
+                        // Récupérer les plats depuis la propriété data
+                        const data = response.data;
+                        
                         // Mettre à jour la liste des plats
                         const itemsContainer = document.getElementById('items-list');
                         itemsContainer.innerHTML = '';

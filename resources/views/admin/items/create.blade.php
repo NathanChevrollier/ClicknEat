@@ -10,12 +10,13 @@
             </a>
         </div>
         <div class="card-body">
-            <form action="{{ route('admin.items.store') }}" method="POST">
+            <form action="{{ route('admin.items.store') }}" method="POST" id="itemForm">
                 @csrf
+                <input type="hidden" name="restaurant_id" id="restaurant_id" value="{{ old('restaurant_id') }}">
                 
                 <div class="mb-3">
-                    <label for="restaurant_id" class="form-label">Restaurant</label>
-                    <select class="form-select @error('restaurant_id') is-invalid @enderror" id="restaurant_id" required>
+                    <label for="restaurant_selector" class="form-label">Restaurant</label>
+                    <select class="form-select" id="restaurant_selector" onchange="updateRestaurantAndCategories(this.value)">
                         <option value="">Sélectionnez un restaurant</option>
                         @foreach($restaurants as $restaurant)
                             <option value="{{ $restaurant->id }}" {{ old('restaurant_id') == $restaurant->id ? 'selected' : '' }}>
@@ -23,9 +24,7 @@
                             </option>
                         @endforeach
                     </select>
-                    @error('restaurant_id')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                    <div class="invalid-feedback" id="restaurant_error">Veuillez sélectionner un restaurant</div>
                 </div>
                 
                 <div class="mb-3">
@@ -63,11 +62,11 @@
                 </div>
                 
                 <div class="form-check mb-3">
-                    <input class="form-check-input @error('is_active') is-invalid @enderror" type="checkbox" id="is_active" name="is_active" {{ old('is_active') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">
+                    <input class="form-check-input @error('is_available') is-invalid @enderror" type="checkbox" id="is_available" name="is_available" value="1" {{ old('is_available') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_available">
                         Actif (disponible à la commande)
                     </label>
-                    @error('is_active')
+                    @error('is_available')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
@@ -89,8 +88,9 @@
 @section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const restaurantSelect = document.getElementById('restaurant_id');
+        const restaurantSelect = document.getElementById('restaurant_selector');
         const categorySelect = document.getElementById('category_id');
+        const restaurantIdInput = document.getElementById('restaurant_id');
         
         // Fonction pour charger les catégories d'un restaurant
         function loadCategories(restaurantId) {
@@ -134,14 +134,30 @@
                 });
         }
         
-        // Événement de changement du restaurant
-        restaurantSelect.addEventListener('change', function() {
-            loadCategories(this.value);
+        // Fonction pour mettre à jour le champ caché restaurant_id et charger les catégories
+        function updateRestaurantAndCategories(restaurantId) {
+            restaurantIdInput.value = restaurantId;
+            loadCategories(restaurantId);
+        }
+        
+        // Exposer la fonction updateRestaurantAndCategories globalement pour qu'elle soit accessible depuis l'attribut onchange
+        window.updateRestaurantAndCategories = updateRestaurantAndCategories;
+        
+        // Vérifier le formulaire avant soumission
+        document.getElementById('itemForm').addEventListener('submit', function(e) {
+            // Vérifier que la catégorie est sélectionnée
+            if (!categorySelect.value) {
+                e.preventDefault();
+                categorySelect.classList.add('is-invalid');
+                return false;
+            }
+            
+            return true;
         });
         
         // Charger les catégories au chargement de la page si un restaurant est sélectionné
         if (restaurantSelect.value) {
-            loadCategories(restaurantSelect.value);
+            updateRestaurantAndCategories(restaurantSelect.value);
         }
         
         // Si une catégorie était pré-sélectionnée (depuis l'URL par exemple)

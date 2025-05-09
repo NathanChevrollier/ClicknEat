@@ -74,24 +74,42 @@ class ItemController extends Controller
     {
         $this->checkAdmin();
         
-        $request->validate([
+        // Valider les champs du formulaire
+        $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
-            'is_active' => 'boolean',
+            'is_available' => 'boolean',
+            'restaurant_id' => 'required|exists:restaurants,id',
+            'menu_id' => 'nullable|exists:menus,id',
         ]);
         
-        // Convertir le prix en centimes pour le stockage
-        $price = $request->price * 100;
+        // Vérifier que la catégorie appartient bien au restaurant sélectionné
+        $category = Category::findOrFail($validatedData['category_id']);
+        if ($category->restaurant_id != $validatedData['restaurant_id']) {
+            return redirect()->back()->withInput()->withErrors([
+                'category_id' => 'La catégorie sélectionnée n\'appartient pas au restaurant choisi.'
+            ]);
+        }
         
-        Item::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'price' => $price,
-            'category_id' => $request->category_id,
-            'is_active' => $request->has('is_active'),
-        ]);
+        // Préparer les données pour la création de l'item
+        $itemData = [
+            'name' => $validatedData['name'],
+            'description' => $validatedData['description'] ?? null,
+            'price' => $validatedData['price'] * 100, // Convertir en centimes
+            'category_id' => $validatedData['category_id'],
+            'restaurant_id' => $validatedData['restaurant_id'],
+            'is_available' => $request->has('is_available'),
+        ];
+        
+        // Ajouter menu_id s'il est présent
+        if (isset($validatedData['menu_id'])) {
+            $itemData['menu_id'] = $validatedData['menu_id'];
+        }
+        
+        // Créer l'item
+        Item::create($itemData);
         
         return redirect()->route('admin.items.index')
             ->with('success', 'Plat créé avec succès');
@@ -131,7 +149,7 @@ class ItemController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
-            'is_active' => 'boolean',
+            'is_available' => 'boolean',
         ]);
         
         // Convertir le prix en centimes pour le stockage
@@ -142,7 +160,7 @@ class ItemController extends Controller
             'description' => $request->description,
             'price' => $price,
             'category_id' => $request->category_id,
-            'is_active' => $request->has('is_active'),
+            'is_available' => $request->has('is_available'),
         ]);
         
         return redirect()->route('admin.items.index')

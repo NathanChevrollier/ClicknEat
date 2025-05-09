@@ -13,7 +13,7 @@ class RestaurantController extends Controller
      */
     public function index()
     {
-        $restaurants = Restaurant::all();
+        $restaurants = Restaurant::paginate(10);
         return view('admin.restaurants.index', compact('restaurants'));
     }
 
@@ -45,7 +45,17 @@ class RestaurantController extends Controller
      */
     public function show(Restaurant $restaurant)
     {
-        return view('admin.restaurants.show', compact('restaurant'));
+        // Charger explicitement les relations nécessaires
+        $restaurant->load(['user', 'categories', 'menus', 'menus.items']);
+        
+        // Récupérer les plats du restaurant via ses catégories
+        $items = \App\Models\Item::whereHas('category', function($query) use ($restaurant) {
+            $query->where('restaurant_id', $restaurant->id);
+        })->with('category')->get();
+        
+        $itemsCount = $items->count();
+        
+        return view('admin.restaurants.show', compact('restaurant', 'items', 'itemsCount'));
     }
 
     /**

@@ -7,6 +7,9 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Liste des commandes</h5>
+            <a href="{{ route('admin.orders.create') }}" class="btn btn-primary">
+                <i class="bx bx-plus me-1"></i> Ajouter une commande
+            </a>
         </div>
         <div class="card-body">
             <div class="table-responsive text-nowrap">
@@ -31,7 +34,7 @@
                             <td>{{ $order->id }}</td>
                             <td>{{ $order->user->name }}</td>
                             <td>{{ $order->restaurant->name }}</td>
-                            <td>{{ number_format($order->total_price / 100, 2) }} u20ac</td>
+                            <td>{{ number_format($order->total_price / 100, 2) }} €</td>
                             <td>
                                 @switch($order->status)
                                     @case('pending')
@@ -58,25 +61,18 @@
                             </td>
                             <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
                             <td>
-                                <div class="dropdown">
-                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                                        <i class="bx bx-dots-vertical-rounded"></i>
-                                    </button>
-                                    <div class="dropdown-menu dropdown-menu-end">
-                                        <a class="dropdown-item" href="{{ route('admin.orders.show', $order->id) }}">
-                                            <i class="bx bx-show me-1"></i> Détails
-                                        </a>
-                                        @if(in_array($order->status, ['pending', 'confirmed']))
-                                        <a class="dropdown-item" href="#" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) document.getElementById('cancel-order-{{ $order->id }}').submit();">
-                                            <i class="bx bx-x-circle me-1"></i> Annuler
-                                        </a>
-                                        <form id="cancel-order-{{ $order->id }}" action="{{ route('admin.orders.cancel', $order->id) }}" method="POST" style="display: none;">
-                                            @csrf
-                                            @method('PATCH')
-                                        </form>
-                                        @endif
-                                    </div>
-                                </div>
+                                <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-sm btn-info">
+                                    <i class="bx bx-show me-1"></i> Voir
+                                </a>
+                                @if(in_array($order->status, ['pending', 'confirmed']))
+                                <a href="#" class="btn btn-sm btn-danger" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) document.getElementById('cancel-order-{{ $order->id }}').submit();">
+                                    <i class="bx bx-x-circle me-1"></i> Annuler
+                                </a>
+                                <form id="cancel-order-{{ $order->id }}" action="{{ route('admin.orders.cancel', $order->id) }}" method="POST" style="display: none;">
+                                    @csrf
+                                    @method('PATCH')
+                                </form>
+                                @endif
                             </td>
                         </tr>
                         @endforeach

@@ -10,7 +10,7 @@
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Informations du restaurant</h5>
-            <a href="{{ route('restaurants.edit', $restaurant->id) }}" class="btn btn-primary btn-sm">
+            <a href="{{ route('admin.restaurants.edit', $restaurant->id) }}" class="btn btn-primary btn-sm">
                 <i class="bx bx-edit-alt me-1"></i> Modifier le restaurant
             </a>
         </div>
@@ -69,7 +69,7 @@
             <div class="tab-pane fade show active" id="navs-categories" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="card-title">Catégories du restaurant</h5>
-                    <a href="{{ route('admin.categories.create', ['restaurant_id' => $restaurant->id]) }}" class="btn btn-primary btn-sm">
+                    <a href="{{ route('admin.categories.create') }}" class="btn btn-primary btn-sm">
                         <i class="bx bx-plus me-1"></i> Ajouter une catégorie
                     </a>
                 </div>
@@ -89,7 +89,7 @@
                             <tr>
                                 <td>{{ $category->id }}</td>
                                 <td>{{ $category->name }}</td>
-                                <td>{{ Str::limit($category->description, 50) ?: 'Aucune description' }}</td>
+                                <td>{{ \Illuminate\Support\Str::limit($category->description, 50) ?: 'Aucune description' }}</td>
                                 <td>{{ $category->items->count() }}</td>
                                 <td>
                                     <a href="{{ route('admin.categories.show', $category->id) }}" class="btn btn-sm btn-info">
@@ -121,7 +121,7 @@
             <div class="tab-pane fade" id="navs-items" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="card-title">Plats du restaurant</h5>
-                    <a href="{{ route('admin.items.create', ['restaurant_id' => $restaurant->id]) }}" class="btn btn-primary btn-sm">
+                    <a href="{{ route('admin.items.create') }}" class="btn btn-primary btn-sm">
                         <i class="bx bx-plus me-1"></i> Ajouter un plat
                     </a>
                 </div>
@@ -152,16 +152,16 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="{{ route('admin.items.show', ['restaurant_id' => $restaurant->id, 'item_id' => $item->id]) }}" class="btn btn-sm btn-info">
+                                    <a href="{{ route('admin.items.show', $item->id) }}" class="btn btn-sm btn-info">
                                         <i class="bx bx-show me-1"></i> Voir
                                     </a>
-                                    <a href="{{ route('admin.items.edit', ['restaurant_id' => $restaurant->id, 'item_id' => $item->id]) }}" class="btn btn-sm btn-primary">
+                                    <a href="{{ route('admin.items.edit', $item->id) }}" class="btn btn-sm btn-primary">
                                         <i class="bx bx-edit-alt me-1"></i> Modifier
                                     </a>
                                     <a href="#" class="btn btn-sm btn-danger" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir supprimer ce plat ?')) document.getElementById('delete-item-{{ $item->id }}').submit();">
                                         <i class="bx bx-trash me-1"></i> Supprimer
                                     </a>
-                                    <form id="delete-item-{{ $item->id }}" action="{{ route('admin.items.destroy', ['restaurant_id' => $restaurant->id, 'item_id' => $item->id]) }}" method="POST" style="display: none;">
+                                    <form id="delete-item-{{ $item->id }}" action="{{ route('admin.items.destroy', $item->id) }}" method="POST" style="display: none;">
                                         @csrf
                                         @method('DELETE')
                                     </form>
@@ -181,7 +181,7 @@
             <div class="tab-pane fade" id="navs-menus" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="card-title">Menus du restaurant</h5>
-                    <a href="{{ route('admin.menus.create', ['restaurant_id' => $restaurant->id]) }}" class="btn btn-primary btn-sm">
+                    <a href="{{ route('admin.menus.create') }}" class="btn btn-primary btn-sm">
                         <i class="bx bx-plus me-1"></i> Ajouter un menu
                     </a>
                 </div>
@@ -202,7 +202,7 @@
                             <tr>
                                 <td>{{ $menu->id }}</td>
                                 <td>{{ $menu->name }}</td>
-                                <td>{{ Str::limit($menu->description, 50) ?: 'Aucune description' }}</td>
+                                <td>{{ \Illuminate\Support\Str::limit($menu->description, 50) ?: 'Aucune description' }}</td>
                                 <td>{{ number_format($menu->price, 2) }} €</td>
                                 <td>{{ $menu->items->count() }}</td>
                                 <td>

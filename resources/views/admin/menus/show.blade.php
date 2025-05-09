@@ -54,7 +54,7 @@
                                         <h6 class="mb-1">{{ $item->name }}</h6>
                                         <small>{{ number_format($item->price / 100, 2, ',', ' ') }} €</small>
                                     </div>
-                                    <p class="mb-1">{{ Str::limit($item->description, 50) }}</p>
+                                    <p class="mb-1">{{ \Illuminate\Support\Str::limit($item->description, 50) }}</p>
                                     <small>Category: {{ $item->category->name }}</small>
                                 </div>
                             @endforeach

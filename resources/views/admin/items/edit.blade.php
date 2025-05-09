@@ -64,11 +64,11 @@
                 </div>
                 
                 <div class="form-check mb-3">
-                    <input class="form-check-input @error('is_active') is-invalid @enderror" type="checkbox" id="is_active" name="is_active" {{ old('is_active', $item->is_active) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">
+                    <input class="form-check-input @error('is_available') is-invalid @enderror" type="checkbox" id="is_available" name="is_available" value="1" {{ old('is_available', $item->is_available) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_available">
                         Actif (disponible à la commande)
                     </label>
-                    @error('is_active')
+                    @error('is_available')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>

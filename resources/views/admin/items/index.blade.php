@@ -24,7 +24,7 @@
                     <a href="{{ route('restaurants.show', $restaurant->id) }}" class="btn btn-secondary me-2">
                         <i class="bx bx-building me-1"></i> Voir le restaurant
                     </a>
-                    <a href="{{ route('items.create', ['restaurant_id' => $restaurant->id]) }}" class="btn btn-primary">
+                    <a href="{{ route('admin.items.create', ['restaurant_id' => $restaurant->id]) }}" class="btn btn-primary">
                         <i class="bx bx-plus me-1"></i> Ajouter un plat
                     </a>
                 @else
@@ -47,7 +47,7 @@
                             @endforeach
                         </ul>
                     </div>
-                    <a href="{{ route('items.create') }}" class="btn btn-primary">
+                    <a href="{{ route('admin.items.create') }}" class="btn btn-primary">
                         <i class="bx bx-plus me-1"></i> Ajouter un plat
                     </a>
                 @endif
@@ -101,7 +101,7 @@
                                 </a>
                             </td>
                             <td>
-                                @if($item->is_active)
+                                @if($item->is_available)
                                     <span class="badge bg-label-success">Actif</span>
                                 @else
                                     <span class="badge bg-label-danger">Inactif</span>
@@ -113,16 +113,16 @@
                                         <i class="bx bx-dots-vertical-rounded"></i>
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-end">
-                                        <a class="dropdown-item" href="{{ route('items.edit', $item->id) }}">
+                                        <a class="dropdown-item" href="{{ route('admin.items.edit', $item->id) }}">
                                             <i class="bx bx-edit-alt me-1"></i> Modifier
                                         </a>
-                                        <a class="dropdown-item" href="{{ route('items.show', $item->id) }}">
+                                        <a class="dropdown-item" href="{{ route('admin.items.show', $item->id) }}">
                                             <i class="bx bx-show me-1"></i> Voir
                                         </a>
                                         <a class="dropdown-item" href="#" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir supprimer ce plat ?')) document.getElementById('delete-item-{{ $item->id }}').submit();">
                                             <i class="bx bx-trash me-1"></i> Supprimer
                                         </a>
-                                        <form id="delete-item-{{ $item->id }}" action="{{ route('items.destroy', $item->id) }}" method="POST" style="display: none;">
+                                        <form id="delete-item-{{ $item->id }}" action="{{ route('admin.items.destroy', $item->id) }}" method="POST" style="display: none;">
                                             @csrf
                                             @method('DELETE')
                                             <input type="hidden" name="id" value="{{ $item->id }}">

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->integer('cost')->nullable();
             $table->integer('price');
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_available')->default(true);
             $table->timestamps();
             $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
         });

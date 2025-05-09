@@ -7,7 +7,7 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Liste des restaurants</h5>
-            <a href="{{ route('restaurants.create') }}" class="btn btn-primary">
+            <a href="{{ route('admin.restaurants.create') }}" class="btn btn-primary">
                 <i class="bx bx-plus me-1"></i> Ajouter un restaurant
             </a>
         </div>

@@ -25,8 +25,10 @@ class Item extends Model
         'description',
         'cost',
         'price',
-        'is_active',
+        'is_available',
         'category_id',
+        'restaurant_id',
+        'menu_id',
     ];
 
     /**
@@ -35,5 +37,13 @@ class Item extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Menu auquel appartient ce plat (si applicable)
+     */
+    public function menu()
+    {
+        return $this->belongsTo(Menu::class);
     }
 }

@@ -111,6 +111,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/restaurant/{restaurant}/reservations', [ReservationController::class, 'index'])->name('restaurant.reservations');
         Route::post('/reservations/{reservation}/confirm', [ReservationController::class, 'confirm'])->name('reservations.confirm');
         Route::post('/reservations/{reservation}/complete', [ReservationController::class, 'complete'])->name('reservations.complete');
+        
+        // Routes pour les menus des restaurateurs
+        Route::get('/restaurants/{restaurant}/menus', [App\Http\Controllers\MenuController::class, 'index'])->name('restaurants.menus.index');
+        Route::get('/restaurants/{restaurant}/menus/create', [App\Http\Controllers\MenuController::class, 'create'])->name('restaurants.menus.create');
+        Route::post('/restaurants/{restaurant}/menus', [App\Http\Controllers\MenuController::class, 'store'])->name('restaurants.menus.store');
+        Route::get('/restaurants/{restaurant}/menus/{menu}', [App\Http\Controllers\MenuController::class, 'show'])->name('restaurants.menus.show');
+        Route::get('/restaurants/{restaurant}/menus/{menu}/edit', [App\Http\Controllers\MenuController::class, 'edit'])->name('restaurants.menus.edit');
+        Route::put('/restaurants/{restaurant}/menus/{menu}', [App\Http\Controllers\MenuController::class, 'update'])->name('restaurants.menus.update');
+        Route::delete('/restaurants/{restaurant}/menus/{menu}', [App\Http\Controllers\MenuController::class, 'destroy'])->name('restaurants.menus.destroy');
     });
 
     // Routes pour les administrateurs
@@ -127,7 +136,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::get('/restaurants', [AdminController::class, 'restaurants'])->name('restaurants');
             Route::get('/categories', [AdminController::class, 'categories'])->name('categories');
-            Route::get('/orders', [AdminController::class, 'orders'])->name('admin.orders.index');
+            Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
             Route::get('/reservations', [AdminController::class, 'reservations'])->name('reservations');
             Route::get('/reviews', [AdminController::class, 'reviews'])->name('reviews');
 
@@ -145,6 +154,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             // Gestion complète des restaurants admin (CRUD)
             Route::resource('restaurants', App\Http\Controllers\Admin\RestaurantController::class);
+
+            // Gestion complète des réservations admin (CRUD)
+            Route::resource('reservations', App\Http\Controllers\Admin\ReservationController::class);
+
+            // Gestion complète des avis admin (CRUD)
+            Route::resource('reviews', App\Http\Controllers\Admin\ReviewController::class);
         });
 });
 

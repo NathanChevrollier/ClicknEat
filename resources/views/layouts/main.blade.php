@@ -50,175 +50,202 @@
                 <div class="menu-inner-shadow"></div>
 
                 <ul class="menu-inner py-1">
-                    @if(\Illuminate\Support\Facades\Auth::check() && \Illuminate\Support\Facades\Auth::user()->isAdmin())
-                    <!-- Tableau de bord admin -->
-                    <li class="menu-item {{ request()->routeIs('admin.dashboard') || request()->routeIs('admin.restaurants.*') || request()->routeIs('admin.categories.*') || request()->routeIs('admin.items.*') || request()->routeIs('admin.menus.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.dashboard') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-home-circle"></i>
-                            <div>Tableau de bord admin</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Gestion utilisateurs -->
-                    <li class="menu-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.users.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-user"></i>
-                            <div>Gestion utilisateurs</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Gestion des restaurants -->
-                    <li class="menu-item {{ request()->routeIs('admin.restaurants.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.restaurants.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-store"></i>
-                            <div>Gestion restaurants</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Gestion des commandes -->
-                    <li class="menu-item {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.orders.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-receipt"></i>
-                            <div>Gestion commandes</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Gestion des réservations -->
-                    <li class="menu-item {{ request()->routeIs('admin.reservations') ? 'active' : '' }}">
-                        <a href="{{ route('reservations.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-calendar"></i>
-                            <div>Gestion réservations</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Gestion des avis -->
-                    <li class="menu-item {{ request()->routeIs('admin.reviews') ? 'active' : '' }}">
-                        <a href="{{ route('restaurants.index') }}?filter=all_reviews" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-star"></i>
-                            <div>Gestion avis</div>
-                        </a>
-                    </li>
-                    @elseif(\Illuminate\Support\Facades\Auth::check())
-                    <!-- Dashboard (pour non-admin) -->
-                    <li class="menu-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <a href="{{ route('dashboard') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-home-circle"></i>
-                            <div>Tableau de bord</div>
-                        </a>
-                    </li>
-                    @endif
-
                     @if(\Illuminate\Support\Facades\Auth::check())
-                    <!-- Restaurants -->
-                    <li class="menu-item {{ request()->routeIs('restaurants.*') ? 'active' : '' }}">
-                        <a href="{{ route('restaurants.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-store"></i>
-                            <div>Restaurants</div>
-                        </a>
-                    </li>
-
-                    <!-- Commandes -->
-                    @if(\Illuminate\Support\Facades\Auth::user()->isRestaurateur())
-                    <li class="menu-item {{ request()->routeIs('restaurateur.orders') ? 'active' : '' }}">
-                        <a href="{{ route('restaurateur.orders') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-receipt"></i>
-                            <div>Commandes</div>
-                        </a>
-                    </li>
-                    @else
-                    <li class="menu-item {{ request()->routeIs('orders.*') ? 'active' : '' }}">
-                        <a href="{{ route('orders.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-cart"></i>
-                            <div>Mes commandes</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Réservations -->
-                    <li class="menu-item {{ request()->routeIs('reservations.*') ? 'active' : '' }}">
-                        <a href="{{ route('reservations.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-calendar"></i>
-                            <div>Mes réservations</div>
-                        </a>
-                    </li>
-                    
-                    <!-- Mes avis -->
-                    <li class="menu-item {{ request()->routeIs('reviews.*') ? 'active' : '' }}">
-                        <a href="{{ route('restaurants.index') }}?filter=reviewed" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-star"></i>
-                            <div>Mes avis</div>
-                        </a>
-                    </li>
-                    @endif
-
-                    @if(\Illuminate\Support\Facades\Auth::user()->isRestaurateur())
-                    <!-- Catégories (pour restaurateurs) -->
-                    <li class="menu-item {{ request()->routeIs('restaurants.categories.*') ? 'active' : '' }}">
-                        @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
-                            <a href="{{ route('restaurants.categories.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-category"></i>
-                                <div>Catégories</div>
+                        @if(\Illuminate\Support\Facades\Auth::user()->isAdmin())
+                        <!-- Admin Interface -->
+                        <li class="menu-header small text-uppercase">
+                            <span class="menu-header-text">Interface Admin</span>
+                        </li>
+                        <!-- Tableau de bord admin -->
+                        <li class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                            <a href="{{ route('admin.dashboard') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-home-circle"></i>
+                                <div>Tableau de bord admin</div>
                             </a>
-                        @else
-                            <a href="{{ route('restaurants.create') }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-category"></i>
-                                <div>Catégories</div>
+                        </li>
+                        
+                        <!-- Gestion utilisateurs -->
+                        <li class="menu-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.users.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-user"></i>
+                                <div>Gestion utilisateurs</div>
                             </a>
-                        @endif
-                    </li>
-
-                    <!-- Menus (pour restaurateurs) -->
-                    <li class="menu-item {{ request()->routeIs('restaurants.menus.*') ? 'active' : '' }}">
-                        @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
-                            <a href="{{ route('restaurants.menus.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
+                        </li>
+                        
+                        <!-- Gestion des restaurants -->
+                        <li class="menu-item {{ request()->routeIs('admin.restaurants.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.restaurants.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-store"></i>
+                                <div>Gestion restaurants</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Gestion des catégories -->
+                        <li class="menu-item {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.categories.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-category"></i>
+                                <div>Gestion catégories</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Gestion des plats -->
+                        <li class="menu-item {{ request()->routeIs('admin.items.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.items.index') }}" class="menu-link">
                                 <i class="menu-icon tf-icons bx bx-food-menu"></i>
-                                <div>Menus</div>
+                                <div>Gestion plats</div>
                             </a>
+                        </li>
+                        
+                        <!-- Gestion des menus -->
+                        <li class="menu-item {{ request()->routeIs('admin.menus.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.menus.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-restaurant"></i>
+                                <div>Gestion menus</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Gestion des commandes -->
+                        <li class="menu-item {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.orders.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-receipt"></i>
+                                <div>Gestion commandes</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Gestion des réservations -->
+                        <li class="menu-item {{ request()->routeIs('admin.reservations.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.reservations.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-calendar"></i>
+                                <div>Gestion des réservations</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Gestion des avis -->
+                        <li class="menu-item {{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.reviews.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-star"></i>
+                                <div>Gestion des avis</div>
+                            </a>
+                        </li>
+                        
+                        @elseif(\Illuminate\Support\Facades\Auth::user()->isRestaurateur())
+                        <!-- Restaurateur Interface -->
+                        <li class="menu-header small text-uppercase">
+                            <span class="menu-header-text">Interface Restaurateur</span>
+                        </li>
+                        <!-- Dashboard (pour restaurateur) -->
+                        <li class="menu-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <a href="{{ route('dashboard') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-home-circle"></i>
+                                <div>Tableau de bord</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Catégories (pour restaurateurs) -->
+                        <li class="menu-item {{ request()->routeIs('restaurants.categories.*') ? 'active' : '' }}">
+                            @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
+                                <a href="{{ route('restaurants.categories.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-category"></i>
+                                    <div>Catégories</div>
+                                </a>
+                            @else
+                                <a href="{{ route('restaurants.create') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-category"></i>
+                                    <div>Catégories</div>
+                                </a>
+                            @endif
+                        </li>
+
+                        <!-- Menus (pour restaurateurs) -->
+                        <li class="menu-item {{ request()->routeIs('restaurants.menus.*') ? 'active' : '' }}">
+                            @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
+                                <a href="{{ route('restaurants.menus.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-food-menu"></i>
+                                    <div>Menus</div>
+                                </a>
+                            @else
+                                <a href="{{ route('restaurants.index') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-food-menu"></i>
+                                    <div>Menus</div>
+                                </a>
+                            @endif
+                        </li>
+
+                        <!-- Items (pour restaurateurs) -->
+                        <li class="menu-item {{ request()->routeIs('items.*') ? 'active' : '' }}">
+                            <a href="{{ route('items.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-dish"></i>
+                                <div>Plats</div>
+                            </a>
+                        </li>
+
+                        <!-- Tables (pour restaurateurs) -->
+                        <li class="menu-item {{ request()->routeIs('restaurants.tables.*') ? 'active' : '' }}">
+                            @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
+                                <a href="{{ route('restaurants.tables.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-table"></i>
+                                    <div>Tables</div>
+                                </a>
+                            @else
+                                <a href="{{ route('restaurants.create') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-table"></i>
+                                    <div>Tables</div>
+                                </a>
+                            @endif
+                        </li>
+                        
+                        <!-- Réservations (pour restaurateurs) -->
+                        <li class="menu-item {{ request()->routeIs('restaurant.reservations.*') ? 'active' : '' }}">
+                            @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
+                                <a href="{{ route('restaurant.reservations.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-calendar-check"></i>
+                                    <div>Réservations</div>
+                                </a>
+                            @else
+                                <a href="{{ route('restaurants.create') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-calendar-check"></i>
+                                    <div>Réservations</div>
+                                </a>
+                            @endif
+                        </li>
+                        
                         @else
+                        <!-- Client Interface -->
+                        <li class="menu-header small text-uppercase">
+                            <span class="menu-header-text">Interface Client</span>
+                        </li>
+                        <!-- Restaurants -->
+                        <li class="menu-item {{ request()->routeIs('restaurants.*') ? 'active' : '' }}">
                             <a href="{{ route('restaurants.index') }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-food-menu"></i>
-                                <div>Menus</div>
+                                <i class="menu-icon tf-icons bx bx-store"></i>
+                                <div>Restaurants</div>
                             </a>
-                        @endif
-                    </li>
+                        </li>
 
-                    <!-- Items (pour restaurateurs) -->
-                    <li class="menu-item {{ request()->routeIs('items.*') ? 'active' : '' }}">
-                        <a href="{{ route('items.index') }}" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-dish"></i>
-                            <div>Plats</div>
-                        </a>
-                    </li>
-
-                    <!-- Tables (pour restaurateurs) -->
-                    <li class="menu-item {{ request()->routeIs('restaurants.tables.*') ? 'active' : '' }}">
-                        @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
-                            <a href="{{ route('restaurants.tables.index', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-table"></i>
-                                <div>Tables</div>
+                        <!-- Commandes -->
+                        <li class="menu-item {{ request()->routeIs('orders.*') ? 'active' : '' }}">
+                            <a href="{{ route('orders.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-cart"></i>
+                                <div>Mes commandes</div>
                             </a>
-                        @else
-                            <a href="{{ route('restaurants.create') }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-table"></i>
-                                <div>Tables</div>
+                        </li>
+                        
+                        <!-- Réservations -->
+                        <li class="menu-item {{ request()->routeIs('reservations.*') ? 'active' : '' }}">
+                            <a href="{{ route('reservations.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-calendar"></i>
+                                <div>Mes réservations</div>
                             </a>
+                        </li>
+                        
+                        <!-- Mes avis -->
+                        <li class="menu-item {{ request()->routeIs('reviews.*') ? 'active' : '' }}">
+                            <a href="{{ route('restaurants.index') }}?filter=reviewed" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-star"></i>
+                                <div>Mes avis</div>
+                            </a>
+                        </li>
                         @endif
-                    </li>
-                    
-                    <!-- Réservations (pour restaurateurs) -->
-                    <li class="menu-item {{ request()->routeIs('restaurant.reservations') ? 'active' : '' }}">
-                        @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
-                            <a href="{{ route('restaurant.reservations', \Illuminate\Support\Facades\Auth::user()->restaurants->first()->id) }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-calendar-check"></i>
-                                <div>Réservations</div>
-                            </a>
-                        @else
-                            <a href="{{ route('restaurants.create') }}" class="menu-link">
-                                <i class="menu-icon tf-icons bx bx-calendar-check"></i>
-                                <div>Réservations</div>
-                            </a>
-                        @endif
-                    </li>
-                    @endif
                     @endif
                 </ul>
             </aside>

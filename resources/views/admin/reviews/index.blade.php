@@ -10,6 +10,9 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Liste des avis</h5>
             <div>
+                <a href="{{ route('admin.reviews.create') }}" class="btn btn-primary me-2">
+                    <i class="bx bx-plus me-1"></i> Ajouter un avis
+                </a>
                 <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary me-2">
                     <i class="bx bx-arrow-back me-1"></i> Retour au tableau de bord
                 </a>
@@ -33,7 +36,7 @@
 
             <!-- Filtres -->
             <div class="mb-4">
-                <form action="{{ route('admin.reviews') }}" method="GET" class="row g-3">
+                <form action="{{ route('admin.reviews.index') }}" method="GET" class="row g-3">
                     <div class="col-md-3">
                         <label for="restaurant_id" class="form-label">Restaurant</label>
                         <select class="form-select" id="restaurant_id" name="restaurant_id">
@@ -58,7 +61,7 @@
                         <button type="submit" class="btn btn-primary me-2">
                             <i class="bx bx-filter-alt me-1"></i> Filtrer
                         </button>
-                        <a href="{{ route('admin.reviews') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('admin.reviews.index') }}" class="btn btn-outline-secondary">
                             <i class="bx bx-reset me-1"></i> Réinitialiser
                         </a>
                     </div>
