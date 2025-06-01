@@ -92,11 +92,18 @@ class Order extends Model
     
     /**
      * Menus inclus dans la commande
+     * Cette méthode utilise une relation indirecte via la table order_items
+     * au lieu d'une table pivot order_menus qui n'existe pas
      */
     public function menus()
     {
-        return $this->belongsToMany(Menu::class, 'order_menus')
-            ->withPivot('quantity')
-            ->withTimestamps();
+        return $this->hasManyThrough(
+            Menu::class,
+            '\App\Models\OrderItem',
+            'order_id', // Clé étrangère sur order_items
+            'id', // Clé primaire sur menus
+            'id', // Clé primaire sur orders
+            'menu_id' // Clé étrangère sur order_items qui pointe vers menus
+        )->distinct();
     }
 }

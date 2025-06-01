@@ -54,22 +54,15 @@
                     </div>
 
                     <div class="col-md-6">
-                        <h5>Tables disponibles</h5>
+                        <h5><i class="bx bx-table me-1"></i> Tables disponibles</h5>
                         <div class="mb-3">
-                            <label for="table_id" class="form-label">TABLE</label>
-                            <select name="table_id" id="table_id" class="form-select" required>
-                                <option value="">Sélectionner une table</option>
-                                @php
-                                    // Récupérer directement les tables de la base de données
-                                    $dbTables = DB::table('tables')
-                                        ->where('restaurant_id', $restaurant->id)
-                                        ->where('is_available', true)
-                                        ->get();
-                                @endphp
-                                @foreach($dbTables as $table)
-                                    <option value="{{ $table->id }}">Table {{ $table->name }} ({{ $table->capacity }} personnes) - {{ $table->location }}</option>
-                                @endforeach
-                            </select>
+                            <div class="alert alert-info mb-3">
+                                <i class="bx bx-info-circle me-1"></i> Sélectionnez une date, une heure et le nombre de personnes pour voir les tables disponibles
+                            </div>
+                            <div id="tables-container" class="tables-container">
+                                <!-- Les tables disponibles seront chargées ici dynamiquement -->
+                            </div>
+                            <input type="hidden" name="table_id" id="table_id" required>
                         </div>
                     </div>
                 </div>
@@ -101,19 +94,44 @@
     </div>
 </div>
 
-@push('scripts')
+@section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const reservationDateInput = document.getElementById('reservation_date');
         const guestsNumberInput = document.getElementById('guests_number');
-        const tablesContainer = document.getElementById('tablesContainer');
-        const addOrderCheckbox = document.getElementById('add_order');
+        const tableIdInput = document.getElementById('table_id');
+        const tablesContainer = document.getElementById('tables-container');
         const submitButton = document.getElementById('submitButton');
         
-        // Initialiser avec la date et l'heure actuelles + 1 heure (arrondi à la demi-heure suivante)
+        // Ajouter des styles pour les cartes de table
+        const style = document.createElement('style');
+        style.textContent = `
+            .table-option {
+                transition: all 0.3s ease;
+                cursor: pointer;
+                border: 1px solid #e0e0e0;
+            }
+            .table-option:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                transform: translateY(-2px);
+            }
+            .table-option.selected {
+                border: 2px solid #696cff;
+                box-shadow: 0 4px 12px rgba(105, 108, 255, 0.16);
+            }
+            .tables-container {
+                max-height: 400px;
+                overflow-y: auto;
+                padding-right: 5px;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialiser avec la date et l'heure actuelles
         const now = new Date();
+        // Arrondir à l'heure suivante
         now.setHours(now.getHours() + 1);
-        now.setMinutes(Math.ceil(now.getMinutes() / 30) * 30);
+        now.setMinutes(0);
         now.setSeconds(0);
         
         const formattedDate = now.toISOString().slice(0, 16);
@@ -166,12 +184,12 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h5 class="mb-1">${table.name}</h5>
-                                            <p class="mb-0"><i class="bx bx-user me-1"></i> ${table.capacity} personnes</p>
-                                            <p class="mb-0 text-muted"><i class="bx bx-map me-1"></i> ${table.location}</p>
+                                            <h5 class="mb-1"><i class="bx bx-chair me-1"></i> ${table.name}</h5>
+                                            <p class="mb-0"><i class="bx bx-user me-1"></i> <span class="fw-bold">${table.capacity}</span> personnes</p>
+                                            <p class="mb-0 text-muted"><i class="bx bx-map me-1"></i> ${table.location || 'Salle principale'}</p>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input table-radio" type="radio" name="table_id" value="${table.id}" id="table-${table.id}" required>
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary select-table-btn" data-table-id="${table.id}">Choisir</button>
                                         </div>
                                     </div>
                                 </div>
@@ -182,19 +200,29 @@
                     tablesContainer.innerHTML = tablesHtml;
                     
                     // Ajouter des écouteurs d'événements pour la sélection de table
-                    document.querySelectorAll('.table-option').forEach(tableOption => {
-                        tableOption.addEventListener('click', function() {
+                    document.querySelectorAll('.select-table-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
                             const tableId = this.dataset.tableId;
-                            document.getElementById(`table-${tableId}`).checked = true;
+                            document.getElementById('table_id').value = tableId;
                             
                             // Mettre à jour la classe selected
                             document.querySelectorAll('.table-option').forEach(el => {
                                 el.classList.remove('selected');
                             });
-                            this.classList.add('selected');
+                            this.closest('.table-option').classList.add('selected');
                             
                             // Activer le bouton de soumission
                             submitButton.disabled = false;
+                            
+                            // Feedback visuel
+                            document.querySelectorAll('.select-table-btn').forEach(b => {
+                                b.classList.remove('btn-primary');
+                                b.classList.add('btn-outline-primary');
+                                b.textContent = 'Choisir';
+                            });
+                            this.classList.remove('btn-outline-primary');
+                            this.classList.add('btn-primary');
+                            this.textContent = 'Sélectionnée';
                         });
                     });
                 } else {
@@ -225,5 +253,5 @@
         guestsNumberInput.addEventListener('change', loadAvailableTables);
     });
 </script>
-@endpush
+@endsection
 @endsection

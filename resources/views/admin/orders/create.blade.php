@@ -111,37 +111,14 @@
 
 @section('scripts')
 <script>
-    // Gestion de la soumission du formulaire via AJAX
+    // Gestion de la soumission du formulaire directement sans AJAX
+    // Suppression de l'interception AJAX pour revenir à une soumission classique
+    // car l'AJAX semble causer des problèmes avec le traitement des données complexes
+    /*
     document.getElementById('orderForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // Empêcher la soumission classique
-        
-        // Récupérer toutes les données du formulaire
-        const formData = new FormData(this);
-        
-        // Envoyer les données via AJAX
-        // Utiliser directement l'URL complète avec le sous-dossier
-        fetch('/clickneat/admin/orders', {
-            method: 'POST',
-            body: formData,
-            // Pas besoin d'ajouter X-CSRF-TOKEN dans les headers car FormData contient déjà le token @csrf
-            // Le token CSRF est automatiquement inclus via le champ caché _token
-            credentials: 'same-origin'
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url; // Suivre la redirection
-            } else if (response.ok) {
-                // Redirection manuelle vers la liste des commandes avec le sous-dossier correct
-                window.location.href = '/clickneat/admin/orders';
-            } else {
-                alert('Erreur lors de la création de la commande : ' + response.statusText);
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            alert('Erreur lors de la création de la commande');
-        });
+        // Code commenté pour revenir à une soumission traditionnelle
     });
+    */
     
     // Pré-charger les données des restaurants, menus et plats
     const restaurantsData = {
@@ -211,12 +188,12 @@
         row.className = 'row mb-2 item-row';
         row.innerHTML = `
             <div class="col-md-6">
-                <select name="items[${itemCount}][id]" class="form-select item-select" required>
+                <select name="individual_items[${itemCount}][id]" class="form-select item-select" required>
                     <option value="">Sélectionner un plat</option>
                 </select>
             </div>
             <div class="col-md-3">
-                <input type="number" name="items[${itemCount}][quantity]" class="form-control" placeholder="Quantité" min="1" value="1" required>
+                <input type="number" name="individual_items[${itemCount}][quantity]" class="form-control" placeholder="Quantité" min="1" value="1" required>
             </div>
             <div class="col-md-3">
                 <a href="javascript:void(0);" class="btn btn-danger" onclick="this.closest('.item-row').remove();">
@@ -266,12 +243,12 @@
         row.className = 'row mb-2 menu-row';
         row.innerHTML = `
             <div class="col-md-6">
-                <select name="menus[${menuCount}][id]" class="form-select menu-select" required>
+                <select name="new_menus[${menuCount}][id]" class="form-select menu-select" required>
                     <option value="">Sélectionner un menu</option>
                 </select>
             </div>
             <div class="col-md-3">
-                <input type="number" name="menus[${menuCount}][quantity]" class="form-control" placeholder="Quantité" min="1" value="1" required>
+                <input type="number" name="new_menus[${menuCount}][quantity]" class="form-control" placeholder="Quantité" min="1" value="1" required>
             </div>
             <div class="col-md-3">
                 <a href="javascript:void(0);" class="btn btn-danger" onclick="this.closest('.menu-row').remove();">
@@ -325,10 +302,17 @@
                 .then(menuItems => {
                     console.log('Plats du menu récupérés:', menuItems);
                     
+                    // Pour chaque plat du menu, créer un champ caché pour associer le menu
+                    const menuIdInput = document.createElement('input');
+                    menuIdInput.type = 'hidden';
+                    menuIdInput.name = `menu_items[${menuId}]`;
+                    menuIdInput.value = menuId;
+                    menusContainer.appendChild(menuIdInput);
+                    
                     // Pour chaque plat du menu, créer un champ caché
                     menuItems.forEach(item => {
                         // Vérifier si le plat est déjà présent dans le formulaire
-                        const existingItemInput = document.querySelector(`input[name="items[${item.id}][id]"][data-menu-id="${menuId}"]`);
+                        const existingItemInput = document.querySelector(`input[name="menu_items_data[${item.id}][id]"][data-menu-id="${menuId}"]`);
                         if (existingItemInput) {
                             // Mettre à jour la quantité si le plat existe déjà
                             const quantityInput = existingItemInput.closest('.hidden-item-row').querySelector('.item-quantity');
@@ -338,9 +322,9 @@
                             const hiddenRow = document.createElement('div');
                             hiddenRow.className = 'hidden-item-row d-none';
                             hiddenRow.innerHTML = `
-                                <input type="hidden" name="items[${item.id}][id]" value="${item.id}" data-menu-id="${menuId}">
-                                <input type="hidden" name="items[${item.id}][quantity]" class="item-quantity" value="${menuQuantity}">
-                                <input type="hidden" name="items[${item.id}][is_from_menu]" value="1">
+                                <input type="hidden" name="menu_items_data[${item.id}][id]" value="${item.id}" data-menu-id="${menuId}">
+                                <input type="hidden" name="menu_items_data[${item.id}][quantity]" class="item-quantity" value="${menuQuantity}">
+                                <input type="hidden" name="menu_items_data[${item.id}][menu_id]" value="${menuId}">
                             `;
                             itemsContainer.appendChild(hiddenRow);
                         }
@@ -371,5 +355,4 @@
         menuCount++;
     }
 </script>
-@endsection
 @endsection

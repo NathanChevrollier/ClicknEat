@@ -4,6 +4,55 @@
     use Illuminate\Support\Str;
 @endphp
 
+@section('styles')
+<style>
+    .menu-card {
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    .menu-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .menu-card.selected {
+        border-color: #696cff;
+        box-shadow: 0 5px 15px rgba(105, 108, 255, 0.4);
+    }
+    .item-added {
+        animation: pulse 0.5s;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    .add-menu-btn {
+        transition: all 0.2s ease;
+    }
+    .add-menu-btn:hover {
+        background-color: #696cff;
+        color: white;
+    }
+    .menu-category {
+        border-left: 3px solid #e9ecef;
+        padding-left: 10px;
+        margin-left: 5px;
+    }
+    .menu-items-list {
+        max-height: 250px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .menu-items-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    .menu-items-list::-webkit-scrollbar-thumb {
+        background-color: #696cff50;
+        border-radius: 6px;
+    }
+</style>
+@endsection
+
 @section('main')
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Commandes /</span> Nouvelle commande</h4>
@@ -34,27 +83,65 @@
                             <div class="row">
                                 @foreach($menus as $menu)
                                     <div class="col-md-4 mb-3">
-                                        <div class="card h-100 shadow-sm">
-                                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                        <div class="card h-100 shadow-sm menu-card">
+                                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                                                 <h5 class="card-title mb-0">{{ $menu->name }}</h5>
-                                                <span class="badge bg-primary rounded-pill">{{ number_format($menu->price, 2, ',', ' ') }} €</span>
+                                                <span class="badge bg-light text-primary rounded-pill fs-6 fw-bold">{{ number_format($menu->price, 2, ',', ' ') }} €</span>
                                             </div>
                                             <div class="card-body">
-                                                <p class="text-muted mb-2">Comprend {{ $menu->items->count() }} plat(s) :</p>
-                                                <ul class="list-group list-group-flush mb-3">
-                                                    @foreach($menu->items as $item)
-                                                        <li class="list-group-item px-0 py-1 border-0">
-                                                            <i class="bx bx-check text-success me-1"></i> {{ $item->name }}
-                                                        </li>
+                                                <div class="menu-description">
+                                                    @if($menu->description)
+                                                        <p class="text-muted">{{ $menu->description }}</p>
+                                                        <hr>
+                                                    @endif
+                                                    <h6 class="fw-bold text-primary mb-2">
+                                                        <i class="bx bx-food-menu me-1"></i> Contenu du menu ({{ $menu->items->count() }} plats)
+                                                    </h6>
+                                                </div>
+                                                
+                                                <div class="menu-items-list">
+                                                    @php
+                                                        $itemsByCategory = $menu->items->groupBy('category_id');
+                                                    @endphp
+                                                    
+                                                    @foreach($itemsByCategory as $categoryId => $items)
+                                                        @php
+                                                            $category = \App\Models\Category::find($categoryId);
+                                                            $categoryName = $category ? $category->name : 'Autres';
+                                                        @endphp
+                                                        <div class="menu-category mb-2">
+                                                            <span class="text-muted small">{{ $categoryName }}</span>
+                                                            <ul class="list-group list-group-flush">
+                                                                @foreach($items as $item)
+                                                                    <li class="list-group-item px-0 py-1 border-0 d-flex align-items-center">
+                                                                        <i class="bx bx-check-circle text-success me-2"></i>
+                                                                        <div>
+                                                                            <span class="fw-semibold">{{ $item->name }}</span>
+                                                                            @if($item->description)
+                                                                                <p class="text-muted small mb-0">{{ Str::limit($item->description, 60) }}</p>
+                                                                            @endif
+                                                                        </div>
+                                                                    </li>
+                                                                @endforeach
+                                                            </ul>
+                                                        </div>
                                                     @endforeach
-                                                </ul>
-                                                <div class="input-group mt-3">
-                                                    <span class="input-group-text">Quantité</span>
-                                                    <input type="number" min="0" value="0" class="form-control menu-quantity" 
-                                                        id="menu-{{ $menu->id }}" 
-                                                        name="menus[{{ $menu->id }}][quantity]" 
-                                                        data-price="{{ $menu->price * 100 }}">
-                                                    <input type="hidden" name="menus[{{ $menu->id }}][id]" value="{{ $menu->id }}">
+                                                </div>
+                                                
+                                                <div class="mt-3 pt-3 border-top">
+                                                    <div class="input-group">
+                                                        <span class="input-group-text bg-primary text-white">
+                                                            <i class="bx bx-cart-add me-1"></i> Quantité
+                                                        </span>
+                                                        <input type="number" min="0" value="0" class="form-control menu-quantity" 
+                                                            id="menu-{{ $menu->id }}" 
+                                                            name="menus[{{ $menu->id }}][quantity]" 
+                                                            data-price="{{ $menu->price * 100 }}">
+                                                        <button type="button" class="btn btn-outline-primary add-menu-btn" data-menu-id="{{ $menu->id }}">
+                                                            <i class="bx bx-plus"></i> Ajouter
+                                                        </button>
+                                                        <input type="hidden" name="menus[{{ $menu->id }}][id]" value="{{ $menu->id }}">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -146,11 +233,13 @@
 
 @section('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
+        // Éléments du DOM
         const quantityInputs = document.querySelectorAll('.item-quantity');
         const menuQuantityInputs = document.querySelectorAll('.menu-quantity');
         const orderSummary = document.getElementById('orderSummary');
         const submitButton = document.getElementById('submitOrder');
+        const addMenuButtons = document.querySelectorAll('.add-menu-btn');
         
         // Créer un mappage des plats appartenant à chaque menu
         const menuItemsMap = {};
@@ -221,64 +310,6 @@
                     menuCard.classList.remove('bg-light', 'text-muted');
                     const disabledMessage = menuCard.querySelector('.disabled-message');
                     if (disabledMessage) {
-                        disabledMessage.remove();
-                    }
-                }
-            });
-            
-            // Appliquer les contraintes pour les menus actifs
-            activeMenus.forEach(menuId => {
-                const menuItems = menuItemsMap[menuId] || [];
-                
-                // Désactiver les plats de ce menu
-                menuItems.forEach(itemId => {
-                    const itemInput = document.getElementById(`item-${itemId}`);
-                    if (itemInput) {
-                        itemInput.disabled = true;
-                        itemInput.value = 0;
-                        
-                        // Ajouter un style visuel et un message
-                        const itemCard = itemInput.closest('.card');
-                        if (itemCard) {
-                            itemCard.classList.add('bg-light', 'text-muted');
-                            
-                            // Ajouter un message explicatif s'il n'existe pas déjà
-                            if (!itemCard.querySelector('.disabled-message')) {
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = 'alert alert-info mt-2 disabled-message';
-                                messageDiv.innerHTML = '<small><i class="bx bx-info-circle"></i> Ce plat fait partie d\'un menu que vous avez sélectionné</small>';
-                                itemCard.querySelector('.card-body').appendChild(messageDiv);
-                            }
-                        }
-                    }
-                });
-            });
-            
-            // Appliquer les contraintes pour les plats actifs
-            activeItems.forEach(itemId => {
-                // Si ce plat appartient à un menu, désactiver ce menu
-                if (itemMenuMap[itemId]) {
-                    const menuId = itemMenuMap[itemId];
-                    const menuInput = document.getElementById(`menu-${menuId}`);
-                    
-                    if (menuInput) {
-                        menuInput.disabled = true;
-                        menuInput.value = 0;
-                        
-                        // Ajouter un style visuel et un message
-                        const menuCard = menuInput.closest('.card');
-                        if (menuCard) {
-                            menuCard.classList.add('bg-light', 'text-muted');
-                            
-                            // Ajouter un message explicatif s'il n'existe pas déjà
-                            if (!menuCard.querySelector('.disabled-message')) {
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = 'alert alert-info mt-2 disabled-message';
-                                messageDiv.innerHTML = '<small><i class="bx bx-info-circle"></i> Ce menu contient des plats que vous avez sélectionnés individuellement</small>';
-                                menuCard.querySelector('.card-body').appendChild(messageDiv);
-                            }
-                        }
-                    }
                 }
             });
             
@@ -342,6 +373,35 @@
             }
         }
         
+        // Fonction pour ajouter un menu au panier avec animation
+        function addMenuToCart(menuId) {
+            const menuCard = document.querySelector(`.menu-card:has([id="menu-${menuId}"])`);
+            const quantityInput = document.getElementById(`menu-${menuId}`);
+            
+            // Incrémenter la quantité
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            
+            // Ajouter une classe pour l'animation
+            menuCard.classList.add('item-added');
+            setTimeout(() => {
+                menuCard.classList.remove('item-added');
+            }, 500);
+            
+            // Mettre à jour le récapitulatif
+            updateOrderSummary();
+            
+            // Faire défiler jusqu'au récapitulatif
+            orderSummary.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Gérer les boutons "Ajouter" pour les menus
+        addMenuButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const menuId = this.getAttribute('data-menu-id');
+                addMenuToCart(menuId);
+            });
+        });
+        
         // Écouter les changements de quantité pour les plats individuels
         quantityInputs.forEach(input => {
             input.addEventListener('change', updateOrderSummary);
@@ -352,9 +412,25 @@
         menuQuantityInputs.forEach(input => {
             input.addEventListener('change', updateOrderSummary);
             input.addEventListener('input', updateOrderSummary);
+            
+            // Ajouter un événement pour mettre à jour visuellement la carte quand la quantité change
+            input.addEventListener('change', function() {
+                const menuCard = this.closest('.menu-card');
+                if (parseInt(this.value) > 0) {
+                    menuCard.classList.add('selected');
+                } else {
+                    menuCard.classList.remove('selected');
+                }
+            });
         });
         
-        // Initialiser le récapitulatif et les contraintes
+        // Ajouter des tooltips pour améliorer l'expérience utilisateur
+        const menuCards = document.querySelectorAll('.menu-card');
+        menuCards.forEach(card => {
+            card.setAttribute('title', 'Cliquez sur Ajouter pour commander ce menu');
+        });
+        
+        // Initialiser le récapitulatif
         updateOrderSummary();
     });
 </script>

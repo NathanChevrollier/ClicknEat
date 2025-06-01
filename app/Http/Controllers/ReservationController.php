@@ -189,6 +189,12 @@ class ReservationController extends Controller
      */
     public function store(Request $request)
     {
+        // Ajout de journalisation pour débogage
+        Log::info('Données de réservation reçues', [
+            'request_data' => $request->all(),
+            'user_id' => auth()->id()
+        ]);
+        
         $request->validate([
             'restaurant_id' => 'required|exists:restaurants,id',
             'reservation_date' => 'required|date|after:now',
@@ -200,35 +206,114 @@ class ReservationController extends Controller
         
         $restaurant = Restaurant::findOrFail($request->restaurant_id);
         
-        // Vérifier que le restaurant accepte les réservations
+        // Vérifier que le restaurant est ouvert et accepte les réservations
+        if (!$restaurant->is_open) {
+            Log::warning('Tentative de réservation dans un restaurant fermé', [
+                'restaurant_id' => $restaurant->id,
+                'user_id' => auth()->id()
+            ]);
+            return redirect()->route('restaurants.show', $restaurant->id)
+                ->with('error', 'Ce restaurant est actuellement fermé et n\'accepte pas de réservations.');
+        }
+        
         if (!$restaurant->accepts_reservations) {
+            Log::warning('Tentative de réservation dans un restaurant qui n\'accepte pas les réservations', [
+                'restaurant_id' => $restaurant->id,
+                'user_id' => auth()->id()
+            ]);
             return redirect()->route('restaurants.show', $restaurant->id)
                 ->with('error', 'Ce restaurant n\'accepte pas les réservations.');
         }
         
-        // Vérifier que la table appartient au restaurant
-        $table = Table::findOrFail($request->table_id);
-        if ($table->restaurant_id != $restaurant->id) {
+        // Vérifier que la table appartient au restaurant et est active
+        $table = Table::where('id', $request->table_id)
+                      ->where('restaurant_id', $restaurant->id)
+                      ->where('is_active', 1)
+                      ->first();
+        
+        if (!$table) {
+            Log::warning('Tentative de réservation avec une table invalide ou inactive', [
+                'table_id' => $request->table_id,
+                'restaurant_id' => $restaurant->id,
+                'user_id' => auth()->id()
+            ]);
             return redirect()->route('reservations.create', $restaurant->id)
-                ->with('error', 'Table invalide.');
+                ->with('error', 'La table sélectionnée n\'est pas disponible.');
         }
         
         // Vérifier que la table est disponible
         $reservationDate = new \DateTime($request->reservation_date);
+        
+        // Vérifier que la date de réservation est dans les heures d'ouverture du restaurant
+        $dayOfWeek = strtolower($reservationDate->format('l'));
+        $hourOfDay = (int)$reservationDate->format('G');
+        
+        $openingHoursColumn = 'opening_hours_' . $dayOfWeek;
+        $closingHoursColumn = 'closing_hours_' . $dayOfWeek;
+        
+        if ($restaurant->$openingHoursColumn === null || 
+            $hourOfDay < (int)$restaurant->$openingHoursColumn || 
+            $hourOfDay >= (int)$restaurant->$closingHoursColumn) {
+            
+            Log::warning('Tentative de réservation en dehors des heures d\'ouverture', [
+                'restaurant_id' => $restaurant->id,
+                'day' => $dayOfWeek,
+                'hour' => $hourOfDay,
+                'opening_hour' => $restaurant->$openingHoursColumn,
+                'closing_hour' => $restaurant->$closingHoursColumn
+            ]);
+            
+            return redirect()->route('reservations.create', $restaurant->id)
+                ->with('error', 'L\'horaire de réservation est en dehors des heures d\'ouverture du restaurant.');
+        }
+        
         if (!$this->isTableAvailable($table->id, $reservationDate)) {
+            Log::info('Table non disponible pour la réservation', [
+                'table_id' => $table->id,
+                'reservation_date' => $reservationDate->format('Y-m-d H:i:s')
+            ]);
+            
             return redirect()->route('reservations.create', $restaurant->id)
                 ->with('error', 'Cette table n\'est plus disponible pour cette date et heure.');
         }
         
         // Vérifier que la capacité de la table est suffisante
         if ($table->capacity < $request->guests_number) {
+            Log::info('Capacité de table insuffisante', [
+                'table_id' => $table->id,
+                'table_capacity' => $table->capacity,
+                'guests_number' => $request->guests_number
+            ]);
+            
             return redirect()->route('reservations.create', $restaurant->id)
                 ->with('error', 'Cette table ne peut pas accueillir autant de personnes.');
         }
         
-        DB::beginTransaction();
+        // Vérifier si l'utilisateur a déjà une réservation qui chevauche ce créneau
+        $userId = Auth::id();
+        $startTime = (clone $reservationDate)->modify('-2 hours');
+        $endTime = (clone $reservationDate)->modify('+2 hours');
+        
+        $existingReservation = Reservation::where('user_id', $userId)
+            ->where('status', '!=', Reservation::STATUS_CANCELLED)
+            ->whereBetween('reservation_date', [$startTime, $endTime])
+            ->first();
+            
+        if ($existingReservation) {
+            Log::warning('Tentative de réservation multiple pour un même créneau', [
+                'user_id' => $userId,
+                'existing_reservation_id' => $existingReservation->id,
+                'existing_reservation_date' => $existingReservation->reservation_date,
+                'new_reservation_date' => $reservationDate->format('Y-m-d H:i:s')
+            ]);
+            
+            return redirect()->route('reservations.create', $restaurant->id)
+                ->with('error', 'Vous avez déjà une réservation prévue à cette date et heure.');
+        }
         
         try {
+            DB::beginTransaction();
+            
             // Créer la réservation
             $reservation = new Reservation([
                 'user_id' => Auth::id(),

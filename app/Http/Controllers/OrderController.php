@@ -78,13 +78,16 @@ class OrderController extends Controller
             $validatedData = $request->validate([
                 'restaurant_id' => 'required|exists:restaurants,id',
                 'items' => 'sometimes|array',
+                'menus' => 'sometimes|array',
                 'notes' => 'nullable|string',
             ]);
             
-            // Vérifier si au moins un item a une quantité > 0
+            // Vérifier si au moins un item ou un menu a une quantité > 0
             $hasItems = false;
             $totalPrice = 0;
+            $insertCount = 0;
             
+            // Vérifier les plats individuels
             if ($request->has('items')) {
                 foreach ($request->items as $itemId => $itemData) {
                     if (isset($itemData['quantity']) && $itemData['quantity'] > 0) {
@@ -94,13 +97,23 @@ class OrderController extends Controller
                 }
             }
             
+            // Vérifier les menus
+            if (!$hasItems && $request->has('menus')) {
+                foreach ($request->menus as $menuId => $menuData) {
+                    if (isset($menuData['quantity']) && $menuData['quantity'] > 0) {
+                        $hasItems = true;
+                        break;
+                    }
+                }
+            }
+            
             if (!$hasItems) {
-                return redirect()->back()->with('error', 'Votre commande doit contenir au moins un article.');
+                return redirect()->back()->with('error', 'Votre commande doit contenir au moins un article ou un menu.');
             }
             
             $restaurant = Restaurant::findOrFail($request->restaurant_id);
             
-            // Créer la commande
+            // Créer la commande immédiatement pour avoir un ID
             $order = new Order([
                 'user_id' => auth()->id(),
                 'restaurant_id' => $restaurant->id,
@@ -110,61 +123,200 @@ class OrderController extends Controller
             ]);
             
             $order->save();
+            Log::info('Commande créée', ['order_id' => $order->id]);
             
-            // Structure pour suivre les items à attacher
-            $itemsToAttach = [];
-            
-            // Ajouter les items à la commande
+            // 1. Traiter les plats individuels
             if ($request->has('items')) {
                 foreach ($request->items as $itemId => $itemData) {
                     $quantity = intval($itemData['quantity'] ?? 0);
                     
                     if ($quantity > 0) {
-                        $item = Item::findOrFail($itemId);
-                        $price = $item->price;
-                        $menuId = null;
-                        
-                        // Vérifier si l'item fait partie d'un menu
-                        if ($item->menu_id) {
-                            $menuId = $item->menu_id;
-                        }
-                        
-                        // Si le plat est déjà dans la commande avec un autre menu, on le remplace
-                        // car un plat ne peut être associé qu'à un seul menu
-                        if (isset($itemsToAttach[$item->id])) {
-                            // Si c'est déjà un plat du même menu, on cumule les quantités
-                            if (isset($itemsToAttach[$item->id]['menu_id']) && $itemsToAttach[$item->id]['menu_id'] == $menuId) {
-                                $itemsToAttach[$item->id]['quantity'] += $quantity;
-                            } else {
-                                // Sinon on remplace (plat individuel ou d'un autre menu)
-                                $itemsToAttach[$item->id] = [
-                                    'quantity' => $quantity, 
-                                    'price' => $price, 
-                                    'menu_id' => $menuId
-                                ];
+                        try {
+                            // Vérifier que le plat existe et est disponible
+                            $item = Item::where('id', $itemId)
+                                ->where('is_available', 1)
+                                ->first();
+                                
+                            if (!$item) {
+                                Log::warning('Plat non disponible:', ['item_id' => $itemId]);
+                                continue;
                             }
-                        } else {
-                            // Nouveau plat
-                            $itemsToAttach[$item->id] = [
-                                'quantity' => $quantity, 
-                                'price' => $price, 
-                                'menu_id' => $menuId
-                            ];
+                            
+                            $price = $item->price;
+                            
+                            // Vérifier si le plat existe déjà dans la commande
+                            $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
+                                ->where('order_id', $order->id)
+                                ->where('item_id', $itemId)
+                                ->first();
+                                
+                            if ($existingOrderItem) {
+                                // Mettre à jour la quantité si le plat existe déjà
+                                \Illuminate\Support\Facades\DB::table('order_items')
+                                    ->where('id', $existingOrderItem->id)
+                                    ->update([
+                                        'quantity' => $existingOrderItem->quantity + $quantity,
+                                        'updated_at' => now()
+                                    ]);
+                                    
+                                Log::info('Quantité du plat individuel mise à jour:', [
+                                    'item_id' => $itemId,
+                                    'item_name' => $item->name,
+                                    'old_quantity' => $existingOrderItem->quantity,
+                                    'new_quantity' => $existingOrderItem->quantity + $quantity
+                                ]);
+                            } else {
+                                // Insérer le nouveau plat
+                                \Illuminate\Support\Facades\DB::table('order_items')->insert([
+                                    'order_id' => $order->id,
+                                    'item_id' => $itemId,
+                                    'quantity' => $quantity,
+                                    'price' => $price,
+                                    'menu_id' => null, // Pas de menu car c'est un plat individuel
+                                    'created_at' => now(),
+                                    'updated_at' => now()
+                                ]);
+                                
+                                Log::info('Plat individuel inséré:', [
+                                    'item_id' => $itemId,
+                                    'item_name' => $item->name,
+                                    'quantity' => $quantity,
+                                    'price' => $price
+                                ]);
+                            }
+                            
+                            $totalPrice += $price * $quantity;
+                            $insertCount++;
+                            $hasItems = true;
+                        } catch (\Exception $e) {
+                            Log::error('Erreur lors du traitement du plat:', [
+                                'error' => $e->getMessage(),
+                                'item_id' => $itemId
+                            ]);
                         }
-                        
-                        $totalPrice += $price * $quantity;
                     }
                 }
             }
             
-            // Attacher tous les items à la commande
-            if (!empty($itemsToAttach)) {
-                $order->items()->sync($itemsToAttach);
+            // 2. Traiter les menus
+            if ($request->has('menus')) {
+                foreach ($request->menus as $menuId => $menuData) {
+                    $quantity = intval($menuData['quantity'] ?? 0);
+                    
+                    if ($quantity > 0) {
+                        try {
+                            // Vérifier que le menu existe et est actif
+                            $menu = \App\Models\Menu::where('id', $menuId)
+                                ->where('is_active', 1)
+                                ->first();
+                                
+                            if (!$menu) {
+                                Log::warning('Menu non trouvé ou inactif:', ['menu_id' => $menuId]);
+                                continue;
+                            }
+                            
+                            // Ajouter le prix du menu au total
+                            $totalPrice += $menu->price * $quantity;
+                            $hasItems = true;
+                            
+                            Log::info('Menu traité:', [
+                                'menu_id' => $menuId,
+                                'menu_name' => $menu->name,
+                                'quantity' => $quantity,
+                                'price' => $menu->price
+                            ]);
+                            
+                            // Récupérer les plats du menu
+                            $menuItems = \App\Models\Item::where('menu_id', $menuId)
+                                ->where('is_available', 1)
+                                ->get();
+                                
+                            if ($menuItems->isEmpty()) {
+                                Log::warning('Menu sans plats disponibles:', ['menu_id' => $menuId]);
+                                continue;
+                            }
+                            
+                            // Ajouter chaque plat du menu à la commande
+                            foreach ($menuItems as $item) {
+                                try {
+                                    // Vérifier si le plat existe déjà dans la commande
+                                    $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
+                                        ->where('order_id', $order->id)
+                                        ->where('item_id', $item->id)
+                                        ->first();
+                                        
+                                    if ($existingOrderItem) {
+                                        // Mettre à jour la quantité si le plat existe déjà
+                                        \Illuminate\Support\Facades\DB::table('order_items')
+                                            ->where('id', $existingOrderItem->id)
+                                            ->update([
+                                                'quantity' => $existingOrderItem->quantity + $quantity,
+                                                'menu_id' => $menuId, // Associer au menu
+                                                'updated_at' => now()
+                                            ]);
+                                            
+                                        Log::info('Quantité du plat de menu mise à jour:', [
+                                            'item_id' => $item->id,
+                                            'item_name' => $item->name,
+                                            'menu_id' => $menuId,
+                                            'old_quantity' => $existingOrderItem->quantity,
+                                            'new_quantity' => $existingOrderItem->quantity + $quantity
+                                        ]);
+                                    } else {
+                                        // Insérer le nouveau plat du menu
+                                        \Illuminate\Support\Facades\DB::table('order_items')->insert([
+                                            'order_id' => $order->id,
+                                            'item_id' => $item->id,
+                                            'quantity' => $quantity,
+                                            'price' => $item->price,
+                                            'menu_id' => $menuId, // Associer au menu
+                                            'created_at' => now(),
+                                            'updated_at' => now()
+                                        ]);
+                                        
+                                        Log::info('Plat de menu inséré:', [
+                                            'item_id' => $item->id,
+                                            'item_name' => $item->name,
+                                            'menu_id' => $menuId,
+                                            'quantity' => $quantity,
+                                            'price' => $item->price
+                                        ]);
+                                    }
+                                    
+                                    $insertCount++;
+                                } catch (\Exception $e) {
+                                    Log::error('Erreur lors du traitement du plat de menu:', [
+                                        'error' => $e->getMessage(),
+                                        'item_id' => $item->id,
+                                        'menu_id' => $menuId
+                                    ]);
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::error('Erreur lors du traitement du menu:', [
+                                'error' => $e->getMessage(),
+                                'menu_id' => $menuId
+                            ]);
+                        }
+                    }
+                }
+            }
+            
+            // Vérifier qu'au moins un élément a été ajouté à la commande
+            if (!$hasItems || $insertCount == 0) {
+                $order->delete();
+                return redirect()->back()->with('error', 'Aucun article valide n\'a été ajouté à votre commande.');
             }
             
             // Mettre à jour le prix total
             $order->total_price = $totalPrice;
             $order->save();
+            
+            Log::info('Commande finalisée avec succès', [
+                'order_id' => $order->id, 
+                'total_price' => $totalPrice,
+                'items_count' => $insertCount
+            ]);
             
             return redirect()->route('orders.index')
                 ->with('success', 'Commande créée avec succès!');
