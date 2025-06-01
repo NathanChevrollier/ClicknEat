@@ -233,12 +233,38 @@ class TableController extends Controller
      */
     public function getAvailableTables(Request $request)
     {
-        $request->validate([
-            'restaurant_id' => 'required|exists:restaurants,id',
-            'reservation_date' => 'required|date|after:now',
-            'guests_number' => 'required|integer|min:1|max:20',
-            'exclude_reservation_id' => 'nullable|integer|exists:reservations,id',
-        ]);
+        try {
+            // Journaliser toutes les données reçues pour le débogage
+            \Illuminate\Support\Facades\Log::info('Données reçues dans getAvailableTables', [
+                'all' => $request->all(),
+                'content_type' => $request->header('Content-Type'),
+                'method' => $request->method()
+            ]);
+            
+            // Valider les données reçues
+            $validated = $request->validate([
+                'restaurant_id' => 'required|exists:restaurants,id',
+                'reservation_date' => 'required',  // Simplifier la validation pour tester
+                'guests_number' => 'required|integer|min:1',
+                'exclude_reservation_id' => 'nullable|integer|exists:reservations,id',
+            ]);
+            
+            // Fix pour le format de date au besoin
+            if (!strtotime($request->reservation_date)) {
+                \Illuminate\Support\Facades\Log::error('Format de date invalide: ' . $request->reservation_date);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Format de date invalide',
+                    'tables' => []
+                ], 400);
+            }
+            
+            \Illuminate\Support\Facades\Log::info('Début de la recherche de tables disponibles', [
+                'restaurant_id' => $request->restaurant_id,
+                'date' => $request->reservation_date,
+                'guests' => $request->guests_number,
+                'exclude_id' => $request->exclude_reservation_id
+            ]);
         
         $restaurant = Restaurant::findOrFail($request->restaurant_id);
         $reservationDate = new \DateTime($request->reservation_date);
@@ -257,26 +283,57 @@ class TableController extends Controller
         $tables = $tablesQuery->get();
         \Illuminate\Support\Facades\Log::info('Nombre de tables trouvées: ' . $tables->count());
         
-        // Récupérer les réservations chevauchantes
-        $startTime = (clone $reservationDate)->modify('-2 hours');
-        $endTime = (clone $reservationDate)->modify('+2 hours');
+        // Récupérer les réservations chevauchantes - utiliser une plage plus courte (1h avant/après)
+        $startTime = (clone $reservationDate)->modify('-1 hour');
+        $endTime = (clone $reservationDate)->modify('+1 hour');
+        
+        // Formater les dates pour le log et la requête
+        $startFormatted = $startTime->format('Y-m-d H:i:s');
+        $endFormatted = $endTime->format('Y-m-d H:i:s');
+        $dateFormatted = $reservationDate->format('Y-m-d H:i:s');
+        
+        \Illuminate\Support\Facades\Log::info('Recherche de réservations entre ' . $startFormatted . ' et ' . $endFormatted);
         
         $reservationsQuery = \App\Models\Reservation::where('restaurant_id', $restaurant->id)
-            ->whereBetween('reservation_date', [$startTime->format('Y-m-d H:i:s'), $endTime->format('Y-m-d H:i:s')])
-            ->where('status', '!=', 'cancelled');
-            
+            ->whereBetween('reservation_date', [$startFormatted, $endFormatted])
+            ->whereIn('status', ['pending', 'confirmed', 'in_progress']);
+        
+        // Journaliser la requête SQL pour les réservations
+        \Illuminate\Support\Facades\Log::info('Requête SQL réservations: ' . $reservationsQuery->toSql());
+        
         // Exclure la réservation en cours de modification si spécifié
         if ($excludeReservationId) {
             $reservationsQuery->where('id', '!=', $excludeReservationId);
         }
         
-        $reservedTableIds = $reservationsQuery->pluck('table_id')->toArray();
+        // Récupérer toutes les réservations pour les analyser
+        $reservations = $reservationsQuery->get();
+        \Illuminate\Support\Facades\Log::info('Réservations trouvées: ' . $reservations->count(), [
+            'réservations' => $reservations->toArray()
+        ]);
+        
+        // Récupérer les IDs des tables réservées
+        $reservedTableIds = $reservations->pluck('table_id')->toArray();
         \Illuminate\Support\Facades\Log::info('Tables réservées IDs: ' . implode(', ', $reservedTableIds));
+        
+        // Journaliser toutes les tables du restaurant
+        \Illuminate\Support\Facades\Log::info('Toutes les tables du restaurant:', [
+            'tables' => $tables->map(function($table) {
+                return [
+                    'id' => $table->id,
+                    'name' => $table->name,
+                    'capacity' => $table->capacity,
+                    'is_available' => $table->is_available
+                ];
+            })->toArray()
+        ]);
         
         // Filtrer les tables disponibles (celles qui ne sont pas déjà réservées)
         $availableTables = $tables->filter(function($table) use ($reservedTableIds) {
             return !in_array($table->id, $reservedTableIds);
         });
+        
+        \Illuminate\Support\Facades\Log::info('Nombre de tables disponibles après filtrage: ' . $availableTables->count());
         
         // Ajouter la table actuelle si elle existe et qu'elle a été exclue
         if ($excludeReservationId) {
@@ -311,6 +368,19 @@ class TableController extends Controller
                 ? 'Tables disponibles trouvées.' 
                 : 'Aucune table disponible pour cette date et ce nombre de personnes.'
         ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur lors de la recherche de tables disponibles', [
+                'message' => $e->getMessage(),
+                'restaurant_id' => $request->restaurant_id ?? 'non défini',
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'tables' => [],
+                'message' => 'Une erreur est survenue lors de la recherche de tables disponibles.'
+            ], 500);
+        }
     }
 
     /**

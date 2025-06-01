@@ -129,37 +129,89 @@
         
         // Fonction pour charger les tables disponibles
         function loadAvailableTables() {
-            const restaurantId = restaurantSelect.value;
-            const reservationDate = reservationDateInput.value;
-            const guestsNumber = guestsNumberInput.value;
+            const restaurantId = document.getElementById('restaurant_id').value;
+            const reservationDate = document.getElementById('reservation_date').value;
+            const guestsNumber = document.getElementById('guests_number').value;
             
             if (!restaurantId || !reservationDate || !guestsNumber) {
+                console.log('Information manquante:', { restaurantId, reservationDate, guestsNumber });
+                tableSelect.innerHTML = '<option value="">Veuillez sélectionner un restaurant, une date et un nombre de convives</option>';
                 return;
             }
             
-            tableSelect.innerHTML = '<option value="">Chargement des tables...</option>';
+            console.log('Chargement des tables disponibles avec:', { 
+                restaurantId, 
+                reservationDate, 
+                guestsNumber, 
+                url: '{{ route("admin.reservations.get-tables") }}' 
+            });
+
+            const formData = new FormData();
+            formData.append('restaurant_id', restaurantId);
+            formData.append('reservation_date', reservationDate);
+            formData.append('guests_number', guestsNumber);
             
-            // Utiliser la bonne route pour récupérer les vraies tables de la base de données
-            const url = `{{ route('tables.available') }}`;
+            tableSelect.innerHTML = '<option value="">Chargement des tables disponibles...</option>';
             
-            fetch(url, {
+            fetch('{{ route("admin.reservations.get-tables") }}', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 },
-                body: JSON.stringify({
-                    restaurant_id: restaurantId,
-                    reservation_date: reservationDate,
-                    guests_number: guestsNumber
-                })
+                body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Statut de la réponse:', response.status);
+                if (!response.ok) {
+                    throw new Error('Erreur réseau: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Réponse reçue:', data);
                 tableSelect.innerHTML = '';
                 
+                if (!data.success) {
+                    console.warn('La requête a échoué:', data.message);
+                    tableSelect.innerHTML = '<option value="">Erreur: ' + (data.message || 'Impossible de charger les tables') + '</option>';
+                    return;
+                }
+                
                 if (!data.tables || data.tables.length === 0) {
-                    tableSelect.innerHTML = '<option value="">Aucune table disponible</option>';
+                    console.log('Aucune table disponible trouvée');
+                    
+                    // SOLUTION DE SECOURS: Afficher toutes les tables du restaurant sans filtrer par disponibilité
+                    if (confirm('Aucune table disponible pour cette date et ce nombre de personnes. Voulez-vous voir toutes les tables existantes du restaurant ?')) {
+                        // Charger toutes les tables du restaurant sans vérifier les réservations
+                        fetch('{{ route("admin.reservations.get-all-tables") }}?restaurant_id=' + restaurantId, {
+                            method: 'GET',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(allTablesData => {
+                            console.log('Réponse de get-all-tables:', allTablesData);
+                            if (allTablesData.success && allTablesData.tables && allTablesData.tables.length > 0) {
+                                tableSelect.innerHTML = '<option value="">Sélectionner une table (TOUTES LES TABLES)</option>';
+                                allTablesData.tables.forEach(table => {
+                                    const option = document.createElement('option');
+                                    option.value = table.id;
+                                    const locationInfo = table.location ? ` - ${table.location}` : '';
+                                    option.textContent = `Table ${table.name} (${table.capacity} personnes)${locationInfo}`;
+                                    tableSelect.appendChild(option);
+                                });
+                            } else {
+                                tableSelect.innerHTML = '<option value="">Aucune table configurée pour ce restaurant</option>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erreur lors du chargement de toutes les tables:', error);
+                            tableSelect.innerHTML = '<option value="">Erreur lors du chargement des tables</option>';
+                        });
+                    } else {
+                        tableSelect.innerHTML = '<option value="">Aucune table disponible</option>';
+                    }
                     return;
                 }
                 
@@ -176,6 +228,9 @@
                 .catch(error => {
                     console.error('Erreur lors du chargement des tables:', error);
                     tableSelect.innerHTML = '<option value="">Erreur lors du chargement des tables</option>';
+                    
+                    // Afficher une alerte pour aider à déboguer
+                    alert('Erreur lors du chargement des tables. Vérifiez la console pour plus détails.');
                 });
         }
         

@@ -173,23 +173,25 @@ class ReservationController extends Controller
     /**
      * Confirme une réservation
      */
-    public function confirm(Reservation $reservation)
+    public function confirm(Request $request, Reservation $reservation)
     {
         $reservation->status = 'confirmed';
         $reservation->save();
-        return redirect()->route('admin.reservations.index')
-            ->with('success', 'Réservation confirmée avec succès');
+
+        return redirect()->back()->with('success', 'Réservation confirmée avec succès');
     }
+
+
 
     /**
      * Marque une réservation comme terminée
      */
-    public function complete(Reservation $reservation)
+    public function complete(Request $request, Reservation $reservation)
     {
         $reservation->status = 'completed';
         $reservation->save();
-        return redirect()->route('admin.reservations.index')
-            ->with('success', 'Réservation marquée comme terminée');
+
+        return redirect()->back()->with('success', 'Réservation marquée comme terminée');
     }
 
     /**
@@ -228,38 +230,112 @@ class ReservationController extends Controller
     }
 
     /**
-     * Récupère les tables disponibles pour un restaurant et une date données
+     * Récupère les tables d'un restaurant
+     * Mode 1: Toutes les tables si on ne spécifie que restaurant_id
+     * Mode 2: Tables disponibles si on spécifie restaurant_id, reservation_date et guests_number
      */
     public function getTables(Request $request)
     {
-        $request->validate([
+        // Journaliser toutes les données reçues pour le débogage
+        \Illuminate\Support\Facades\Log::info('Données reçues dans getAvailableTables', [
+            'all' => $request->all(),
+            'content_type' => $request->header('Content-Type'),
+            'method' => $request->method()
+        ]);
+        
+        // Validation de base - uniquement restaurant_id est obligatoire
+        $validated = $request->validate([
             'restaurant_id' => 'required|exists:restaurants,id',
-            'reservation_date' => 'required|date',
-            'guests_number' => 'required|integer|min:1',
+            'reservation_date' => 'nullable|date',
+            'guests_number' => 'nullable|integer|min:1',
+            'exclude_reservation_id' => 'nullable|integer|exists:reservations,id',
         ]);
 
         $restaurant_id = $request->restaurant_id;
-        $reservation_date = $request->reservation_date;
-        $guests_number = $request->guests_number;
-
-        // Récupérer toutes les tables du restaurant qui peuvent accueillir le nombre de personnes
-        $tables = Table::where('restaurant_id', $restaurant_id)
-            ->where('capacity', '>=', $guests_number)
-            ->get();
-
-        // Filtrer les tables déjà réservées à cette date/heure
-        $reservedTableIds = Reservation::where('restaurant_id', $restaurant_id)
-            ->where('reservation_date', $reservation_date)
-            ->where('status', '!=', 'cancelled')
-            ->pluck('table_id')
-            ->toArray();
-
+        $requestDate = $request->has('reservation_date');
+        
+        // Récupérer les tables de base filtrées par capacité si spécifié
+        $tablesQuery = Table::where('restaurant_id', $restaurant_id)
+            ->where('is_available', true);
+            
+        if ($request->has('guests_number')) {
+            $tablesQuery->where('capacity', '>=', $request->guests_number);
+        }
+        
+        $tables = $tablesQuery->get();
+        \Illuminate\Support\Facades\Log::info('Tables de base trouvées: ' . $tables->count());
+        
+        // MODE 1: Renvoyer toutes les tables si on ne demande pas de vérifier les réservations
+        if (!$requestDate) {
+            $mappedTables = $tables->map(function($table) {
+                return [
+                    'id' => $table->id,
+                    'name' => $table->name,
+                    'capacity' => $table->capacity,
+                    'location' => $table->location ?: '',
+                    'description' => $table->description,
+                    'is_available' => true
+                ];
+            });
+            
+            return response()->json([
+                'success' => true,
+                'tables' => $mappedTables,
+                'message' => $mappedTables->count() > 0 
+                    ? 'Tables trouvées.' 
+                    : 'Aucune table configurée pour ce restaurant.'
+            ]);
+        }
+        
+        // MODE 2: Filtrer les tables disponibles en fonction des réservations existantes
+        $reservation_date = new \DateTime($request->reservation_date);
+        
+        // Récupérer les réservations chevauchantes
+        $startTime = (clone $reservation_date)->modify('-1 hour');
+        $endTime = (clone $reservation_date)->modify('+1 hour');
+        
+        \Illuminate\Support\Facades\Log::info('Recherche de réservations entre ' . 
+            $startTime->format('Y-m-d H:i:s') . ' et ' . 
+            $endTime->format('Y-m-d H:i:s'));
+        
+        $reservationsQuery = Reservation::where('restaurant_id', $restaurant_id)
+            ->whereBetween('reservation_date', [
+                $startTime->format('Y-m-d H:i:s'), 
+                $endTime->format('Y-m-d H:i:s')
+            ])
+            ->whereIn('status', ['pending', 'confirmed', 'in_progress']);
+            
+        // Exclure la réservation en cours de modification si spécifié
+        if ($request->has('exclude_reservation_id')) {
+            $reservationsQuery->where('id', '!=', $request->exclude_reservation_id);
+        }
+            
+        $reservations = $reservationsQuery->get();
+        \Illuminate\Support\Facades\Log::info('Réservations chevauchantes: ' . $reservations->count());
+        
+        $reservedTableIds = $reservations->pluck('table_id')->toArray();
+        
         $availableTables = $tables->filter(function($table) use ($reservedTableIds) {
             return !in_array($table->id, $reservedTableIds);
+        })->values();
+        
+        $mappedTables = $availableTables->map(function($table) {
+            return [
+                'id' => $table->id,
+                'name' => $table->name,
+                'capacity' => $table->capacity,
+                'location' => $table->location ?: '',
+                'description' => $table->description,
+                'is_available' => true
+            ];
         });
 
         return response()->json([
-            'tables' => $availableTables
+            'success' => true,
+            'tables' => $mappedTables,
+            'message' => $mappedTables->count() > 0 
+                ? 'Tables disponibles trouvées.' 
+                : 'Aucune table disponible pour cette date et ce nombre de personnes.'
         ]);
     }
 
@@ -275,6 +351,47 @@ class ReservationController extends Controller
                 ['id' => 2, 'name' => 'Table 2', 'capacity' => 4],
                 ['id' => 3, 'name' => 'Table 3', 'capacity' => 6]
             ]
+        ]);
+    }
+    
+    /**
+     * Récupère toutes les tables d'un restaurant sans filtrage
+     * Utilisé comme plan B quand la recherche normale échoue
+     */
+    public function getAllRestaurantTables(Request $request)
+    {
+        // Validation de base
+        $validated = $request->validate([
+            'restaurant_id' => 'required|exists:restaurants,id'
+        ]);
+        
+        // Journaliser la requête
+        \Illuminate\Support\Facades\Log::info('Récupération de toutes les tables pour restaurant_id: ' . $request->restaurant_id);
+        
+        // Récupérer toutes les tables du restaurant
+        $tables = \App\Models\Table::where('restaurant_id', $request->restaurant_id)
+            ->where('is_available', true)
+            ->get()
+            ->map(function($table) {
+                return [
+                    'id' => $table->id,
+                    'name' => $table->name,
+                    'capacity' => $table->capacity,
+                    'location' => $table->location ?: '',
+                    'description' => $table->description,
+                    'is_available' => true
+                ];
+            });
+            
+        // Journaliser le résultat
+        \Illuminate\Support\Facades\Log::info('Tables trouvées: ' . $tables->count());
+        
+        return response()->json([
+            'success' => true,
+            'tables' => $tables,
+            'message' => $tables->count() > 0 
+                ? 'Tables trouvées.' 
+                : 'Aucune table configurée pour ce restaurant.'
         ]);
     }
 }

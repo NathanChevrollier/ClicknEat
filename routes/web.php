@@ -158,6 +158,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             // Gestion complète des réservations admin (CRUD)
             Route::get('reservations/get-tables', [App\Http\Controllers\Admin\ReservationController::class, 'getTables'])->name('reservations.get-tables');
+            Route::post('reservations/get-tables', [App\Http\Controllers\Admin\ReservationController::class, 'getTables'])->name('reservations.get-tables'); // Supporte aussi POST
+            Route::get('reservations/get-all-tables', [App\Http\Controllers\Admin\ReservationController::class, 'getAllRestaurantTables'])->name('reservations.get-all-tables');
             Route::get('test-tables', [App\Http\Controllers\Admin\ReservationController::class, 'getTablesTest'])->name('reservations.test-tables');
             Route::resource('reservations', App\Http\Controllers\Admin\ReservationController::class);
             Route::post('reservations/{reservation}/confirm', [App\Http\Controllers\Admin\ReservationController::class, 'confirm'])->name('reservations.confirm');

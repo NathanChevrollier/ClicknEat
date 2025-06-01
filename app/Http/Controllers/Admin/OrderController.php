@@ -81,7 +81,17 @@ class OrderController extends Controller
      */
     public function edit($id)
     {
-        $order = \App\Models\Order::with(['user', 'restaurant', 'items'])->findOrFail($id);
+        // Charger l'ordre avec ses relations, y compris les menus
+        $order = \App\Models\Order::with(['user', 'restaurant', 'items', 'menus'])->findOrFail($id);
+        
+        // Ajouter les informations de prix et de quantité aux menus en regroupant les items par menu_id
+        $menuItems = $order->items()->whereNotNull('order_items.menu_id')->get()->groupBy('pivot.menu_id');
+        $menuQuantities = [];
+        
+        foreach($menuItems as $menuId => $items) {
+            // La quantité du menu est égale à la quantité d'un des items du menu (ils ont tous la même)
+            $menuQuantities[$menuId] = $items->first()->pivot->quantity;
+        }
         
         // Récupérer tous les plats disponibles du restaurant
         $availableItems = \App\Models\Item::where('restaurant_id', $order->restaurant_id)
@@ -95,7 +105,7 @@ class OrderController extends Controller
             })
             ->get();
         
-        return view('admin.orders.edit', compact('order', 'availableItems', 'availableMenus'));
+        return view('admin.orders.edit', compact('order', 'availableItems', 'availableMenus', 'menuQuantities'));
     }
 
     /**
@@ -166,10 +176,12 @@ class OrderController extends Controller
                     // Ajouter au prix total
                     $totalPrice += $item->price * $quantity;
                     
-                    // Vérifier d'abord si le plat existe déjà dans la commande
+                    // Vérifier d'abord si le plat existe déjà dans la commande comme plat individuel (menu_id = null)
+                    // Cela est important pour distinguer les plats individuels des plats de menu
                     $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
                         ->where('order_id', $order->id)
                         ->where('item_id', $item->id)
+                        ->whereNull('menu_id')
                         ->first();
                         
                     if ($existingOrderItem) {
@@ -253,15 +265,86 @@ class OrderController extends Controller
                         'prix' => $menu->price,
                         'quantité' => $quantity
                     ]);
+                    
+                    // Récupérer automatiquement tous les plats de ce menu
+                    // et les ajouter à la commande, que l'on vienne du formulaire ou d'une réservation
+                    $menuItems = \App\Models\Item::where('menu_id', $menuId)
+                        ->where('is_available', 1)
+                        ->get();
+                        
+                    \Illuminate\Support\Facades\Log::info('Plats du menu récupérés:', [
+                        'menu_id' => $menuId, 
+                        'count' => $menuItems->count(),
+                        'plats' => $menuItems->pluck('name')->toArray()
+                    ]);
+                    
+                    // Ajouter chaque plat du menu à la commande
+                    foreach ($menuItems as $item) {
+                        try {
+                            // Vérifier si le plat existe déjà dans la commande
+                            $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
+                                ->where('order_id', $order->id)
+                                ->where('item_id', $item->id)
+                                ->where('menu_id', $menuId)
+                                ->first();
+                            
+                            if ($existingOrderItem) {
+                                // Mettre à jour la quantité si le plat existe déjà
+                                \Illuminate\Support\Facades\DB::table('order_items')
+                                    ->where('id', $existingOrderItem->id)
+                                    ->update([
+                                        'quantity' => $existingOrderItem->quantity + $quantity,
+                                        'updated_at' => now()
+                                    ]);
+                                
+                                \Illuminate\Support\Facades\Log::info('Plat de menu existant mis à jour:', [
+                                    'item_id' => $item->id,
+                                    'nom' => $item->name,
+                                    'menu_id' => $menuId,
+                                    'ancien_qte' => $existingOrderItem->quantity,
+                                    'nouvelle_qte' => $existingOrderItem->quantity + $quantity
+                                ]);
+                            } else {
+                                // Ajouter le plat à la commande
+                                \Illuminate\Support\Facades\DB::table('order_items')->insert([
+                                    'order_id' => $order->id,
+                                    'item_id' => $item->id,
+                                    'quantity' => $quantity,
+                                    'price' => $item->price,
+                                    'menu_id' => $menuId,
+                                    'created_at' => now(),
+                                    'updated_at' => now()
+                                ]);
+                                
+                                \Illuminate\Support\Facades\Log::info('Nouveau plat de menu inséré:', [
+                                    'item_id' => $item->id,
+                                    'nom' => $item->name,
+                                    'menu_id' => $menuId,
+                                    'quantité' => $quantity
+                                ]);
+                            }
+                            
+                            $insertCount++;
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Erreur lors de l\'ajout du plat du menu:', [
+                                'error' => $e->getMessage(),
+                                'item_id' => $item->id,
+                                'menu_id' => $menuId
+                            ]);
+                        }
+                    }
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error('Erreur traitement menu: ' . $e->getMessage());
                 }
             }
         }
         
-        // Traiter les plats des menus envoyés via les champs cachés
-        if (!empty($request->menu_items_data)) {
-            \Illuminate\Support\Facades\Log::info('Traitement des plats de menu via les champs cachés');
+        // Cette section est désactivée pour éviter la double comptabilisation des plats
+        // Les plats des menus sont déjà ajoutés automatiquement dans la section précédente
+        
+        // Traiter les plats des menus envoyés via les champs cachés (Désactivé pour éviter duplication)
+        if (false && !empty($request->menu_items_data)) {
+            \Illuminate\Support\Facades\Log::info('Traitement des plats de menu via les champs cachés (Désactivé)');
             
             foreach ($request->menu_items_data as $itemId => $itemData) {
                 try {
@@ -390,6 +473,9 @@ class OrderController extends Controller
             'new_items' => 'nullable|array',
             'new_items.*.id' => 'nullable|exists:items,id',
             'new_items.*.quantity' => 'nullable|integer|min:1',
+            'existing_menus' => 'nullable|array',
+            'existing_menus.*.id' => 'nullable|exists:menus,id',
+            'existing_menus.*.quantity' => 'nullable|integer|min:1',
             'new_menus' => 'nullable|array',
             'new_menus.*.id' => 'nullable|exists:menus,id',
             'new_menus.*.quantity' => 'nullable|integer|min:1',
@@ -443,22 +529,72 @@ class OrderController extends Controller
             }
         }
         
+        // Traiter les menus existants
+        if (!empty($request->existing_menus)) {
+            \Illuminate\Support\Facades\Log::info('Traitement des menus existants:', ['menus' => $request->existing_menus]);
+            
+            foreach ($request->existing_menus as $menuId => $menuData) {
+                if (empty($menuData['id'])) continue;
+                
+                $quantity = $menuData['quantity'] ?? 1;
+                $menu = \App\Models\Menu::find($menuData['id']);
+                
+                if (!$menu || !$menu->is_active) {
+                    \Illuminate\Support\Facades\Log::warning('Menu existant inactif ou non trouvé:', ['menu_id' => $menuData['id']]);
+                    continue;
+                }
+                
+                // Récupérer les plats de ce menu
+                $menuItems = \App\Models\Item::where('menu_id', $menu->id)
+                    ->where('is_available', 1)
+                    ->get();
+                
+                if ($menuItems->isEmpty()) {
+                    \Illuminate\Support\Facades\Log::warning('Menu existant sans plats disponibles:', ['menu_id' => $menu->id]);
+                    continue;
+                }
+                
+                foreach ($menuItems as $menuItem) {
+                    $items[$menuItem->id] = [
+                        'quantity' => $quantity,
+                        'price' => $menuItem->price,
+                        'menu_id' => $menu->id
+                    ];
+                    
+                    $totalPrice += $menuItem->price * $quantity;
+                }
+            }
+        }
+        
         // Ajouter les nouveaux menus
         if (!empty($request->new_menus)) {
             foreach ($request->new_menus as $menuId => $menuData) {
                 if (empty($menuData['id'])) continue;
                 
                 // Vérifier que le menu contient des plats disponibles
-                $menu = \App\Models\Menu::with(['items' => function($query) {
-                    $query->where('is_available', 1);
-                }])->find($menuData['id']);
+                $menu = \App\Models\Menu::find($menuData['id']);
+                if (!$menu || !$menu->is_active) continue;
                 
-                if (!$menu || $menu->items->isEmpty()) continue; // Ignorer les menus sans plats disponibles
+                // Récupérer les plats disponibles associés à ce menu
+                $menuItems = \App\Models\Item::where('menu_id', $menu->id)
+                    ->where('is_available', 1)
+                    ->get();
+                
+                if ($menuItems->isEmpty()) {
+                    \Illuminate\Support\Facades\Log::warning('Menu sans plats disponibles ignoré:', ['menu_id' => $menu->id]);
+                    continue; // Ignorer les menus sans plats disponibles
+                }
+                
+                \Illuminate\Support\Facades\Log::info('Plats du menu récupérés pour mise à jour:', [
+                    'menu_id' => $menu->id, 
+                    'count' => $menuItems->count(),
+                    'plats' => $menuItems->pluck('name')->toArray()
+                ]);
                 
                 $quantity = $menuData['quantity'] ?? 1;
                 
                 // Parcourir les plats disponibles du menu
-                foreach ($menu->items as $menuItem) {
+                foreach ($menuItems as $menuItem) {
                     // Si le plat est déjà dans la commande avec un autre menu, on le remplace
                     // car un plat ne peut être associé qu'à un seul menu
                     if (isset($items[$menuItem->id])) {

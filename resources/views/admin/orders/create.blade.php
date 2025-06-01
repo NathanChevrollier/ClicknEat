@@ -125,22 +125,52 @@
         @foreach(\App\Models\Restaurant::all() as $restaurant)
             {{ $restaurant->id }}: {
                 menus: [
-                    @foreach(\App\Models\Menu::where('restaurant_id', $restaurant->id)->get() as $menu)
+                    @php
+                        // Récupérer les menus actifs du restaurant
+                        $restaurantMenus = \App\Models\Menu::where('restaurant_id', $restaurant->id)
+                            ->where('is_active', 1)
+                            ->get();
+                            
+                        // Filtrer les menus pour ne garder que ceux dont tous les plats sont disponibles
+                        $validMenus = [];
+                        foreach ($restaurantMenus as $menu) {
+                            // Récupérer tous les plats associés à ce menu
+                            $menuItems = \App\Models\Item::where('menu_id', $menu->id)->get();
+                            
+                            // Vérifier si tous les plats du menu sont disponibles
+                            $allItemsAvailable = true;
+                            foreach ($menuItems as $item) {
+                                if (!$item->is_available) {
+                                    $allItemsAvailable = false;
+                                    break;
+                                }
+                            }
+                            
+                            // Si tous les plats sont disponibles, ajouter le menu à la liste des menus valides
+                            if ($allItemsAvailable && $menuItems->count() > 0) {
+                                $validMenus[] = $menu;
+                            }
+                        }
+                    @endphp
+                    
+                    @foreach($validMenus as $menu)
                         {
                             id: {{ $menu->id }},
                             name: "{{ $menu->name }}",
-                            price: {{ $menu->price }}
+                            price: {{ $menu->price }},
+                            is_active: {{ $menu->is_active ? 'true' : 'false' }}
                         },
                     @endforeach
                 ],
                 items: [
                     @foreach(\App\Models\Item::whereHas('category', function($query) use ($restaurant) {
                         $query->where('restaurant_id', $restaurant->id);
-                    })->get() as $item)
+                    })->where('is_available', 1)->get() as $item)
                         {
                             id: {{ $item->id }},
                             name: "{{ $item->name }}",
-                            price: {{ $item->price }}
+                            price: {{ $item->price }},
+                            is_available: {{ $item->is_available ? 'true' : 'false' }}
                         },
                     @endforeach
                 ]

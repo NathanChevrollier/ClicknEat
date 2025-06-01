@@ -144,10 +144,12 @@ class OrderController extends Controller
                             
                             $price = $item->price;
                             
-                            // Vérifier si le plat existe déjà dans la commande
+                            // Vérifier si le plat existe déjà dans la commande comme plat individuel (menu_id = null)
+                            // Cela est important pour distinguer les plats individuels des plats de menu
                             $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
                                 ->where('order_id', $order->id)
                                 ->where('item_id', $itemId)
+                                ->whereNull('menu_id')
                                 ->first();
                                 
                             if ($existingOrderItem) {
@@ -236,13 +238,21 @@ class OrderController extends Controller
                                 continue;
                             }
                             
+                            Log::info('Plats du menu récupérés:', [
+                                'menu_id' => $menuId, 
+                                'count' => $menuItems->count(),
+                                'plats' => $menuItems->pluck('name')->toArray()
+                            ]);
+                            
                             // Ajouter chaque plat du menu à la commande
                             foreach ($menuItems as $item) {
                                 try {
-                                    // Vérifier si le plat existe déjà dans la commande
+                                    // Vérifier si le plat existe déjà dans la commande avec le même menu_id
+                                    // Cela est important pour distinguer les plats individuels des plats de menu
                                     $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
                                         ->where('order_id', $order->id)
                                         ->where('item_id', $item->id)
+                                        ->where('menu_id', $menuId)
                                         ->first();
                                         
                                     if ($existingOrderItem) {

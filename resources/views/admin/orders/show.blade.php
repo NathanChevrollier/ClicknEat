@@ -82,7 +82,15 @@
                             <tbody>
                                 @foreach($order->items as $item)
                                 <tr>
-                                    <td>{{ $item->name }}</td>
+                                    <td>
+                                        @if($item->pivot->menu_id)
+                                            {{ $item->name }}
+                                            <span class="badge bg-label-info">Menu #{{ $item->pivot->menu_id }}</span>
+                                        @else
+                                            {{ $item->name }}
+                                            <span class="badge bg-label-primary">Individuel</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $item->pivot->quantity }}</td>
                                     <td>{{ number_format($item->pivot->price / 100, 2) }} €</td>
                                     <td>{{ number_format(($item->pivot->price * $item->pivot->quantity) / 100, 2) }} €</td>

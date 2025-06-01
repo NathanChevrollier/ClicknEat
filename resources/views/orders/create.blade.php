@@ -71,7 +71,30 @@
                 
                 <!-- Section des menus -->
                 @php
-                    $menus = \App\Models\Menu::where('restaurant_id', $restaurant->id)->with('items')->get();
+                    // Récupérer les menus actifs du restaurant
+                    $restaurantMenus = \App\Models\Menu::where('restaurant_id', $restaurant->id)
+                        ->where('is_active', 1)
+                        ->with('items')
+                        ->get();
+                        
+                    // Filtrer les menus pour ne garder que ceux dont tous les plats sont disponibles
+                    $menus = [];
+                    foreach ($restaurantMenus as $menu) {
+                        // Vérifier si tous les plats du menu sont disponibles
+                        $allItemsAvailable = true;
+                        foreach ($menu->items as $item) {
+                            if (!$item->is_available) {
+                                $allItemsAvailable = false;
+                                break;
+                            }
+                        }
+                        
+                        // Si tous les plats sont disponibles, ajouter le menu à la liste des menus valides
+                        if ($allItemsAvailable && $menu->items->count() > 0) {
+                            $menus[] = $menu;
+                        }
+                    }
+                    $menus = collect($menus);
                 @endphp
                 
                 @if(count($menus) > 0)
@@ -172,7 +195,7 @@
                                                 <div class="accordion-body">
                                                     <div class="row">
                                                         @foreach($category->items as $item)
-                                                            @if($item->menu_id === null)
+                                                            @if($item->menu_id === null && $item->is_available)
                                                                 <div class="col-md-4 mb-3">
                                                                     <div class="card h-100 shadow-sm">
                                                                         <div class="card-header bg-light d-flex justify-content-between align-items-center">

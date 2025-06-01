@@ -80,16 +80,15 @@
                 <div class="mb-3">
                     <label class="form-label">Menus</label>
                     <div id="menus-container" class="mb-2">
-                        @foreach($order->menus ?? [] as $menu)
+                        @foreach($order->menus as $menu)
                         <div class="row mb-2 menu-row">
                             <div class="col-md-6">
-                                <select name="menus[{{ $menu->id }}][id]" class="form-select" disabled>
-                                    <option value="{{ $menu->id }}" selected>{{ $menu->name }} ({{ number_format($menu->pivot->price / 100, 2) }} €)</option>
+                                <select name="existing_menus[{{ $menu->id }}][id]" class="form-select menu-select" required>
+                                    <option value="{{ $menu->id }}">{{ $menu->name }} ({{ number_format($menu->price / 100, 2) }} €)</option>
                                 </select>
-                                <input type="hidden" name="menus[{{ $menu->id }}][id]" value="{{ $menu->id }}">
                             </div>
                             <div class="col-md-3">
-                                <input type="number" name="menus[{{ $menu->id }}][quantity]" class="form-control" placeholder="Quantité" min="1" value="{{ $menu->pivot->quantity }}" required>
+                                <input type="number" name="existing_menus[{{ $menu->id }}][quantity]" class="form-control" placeholder="Quantité" min="1" value="{{ $menuQuantities[$menu->id] ?? 1 }}" required>
                             </div>
                             <div class="col-md-3">
                                 <a href="javascript:void(0);" class="btn btn-danger" onclick="this.closest('.menu-row').remove();">
