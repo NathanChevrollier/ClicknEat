@@ -55,10 +55,21 @@
 
                     <div class="col-md-6">
                         <h5>Tables disponibles</h5>
-                        <div id="tablesContainer" class="mb-3">
-                            <div class="alert alert-info">
-                                <i class="bx bx-info-circle me-1"></i> Veuillez sélectionner une date et une heure pour voir les tables disponibles.
-                            </div>
+                        <div class="mb-3">
+                            <label for="table_id" class="form-label">TABLE</label>
+                            <select name="table_id" id="table_id" class="form-select" required>
+                                <option value="">Sélectionner une table</option>
+                                @php
+                                    // Récupérer directement les tables de la base de données
+                                    $dbTables = DB::table('tables')
+                                        ->where('restaurant_id', $restaurant->id)
+                                        ->where('is_available', true)
+                                        ->get();
+                                @endphp
+                                @foreach($dbTables as $table)
+                                    <option value="{{ $table->id }}">Table {{ $table->name }} ({{ $table->capacity }} personnes) - {{ $table->location }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -66,15 +77,21 @@
                 <div class="row">
                     <div class="col-12">
                         <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="add_order" name="add_order" value="1">
-                            <label class="form-check-label" for="add_order">
-                                Je souhaite également passer une commande pour cette réservation
+                            <input class="form-check-input" type="checkbox" id="confirm_policy" required>
+                            <label class="form-check-label" for="confirm_policy">
+                                J'accepte les <a href="#" data-bs-toggle="modal" data-bs-target="#policyModal">conditions de réservation</a>
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="create_order" name="create_order" value="1">
+                            <label class="form-check-label" for="create_order">
+                                <strong>Créer une commande pour cette réservation</strong>
+                                <small class="d-block text-muted">Vous serez redirigé vers le formulaire de commande après l'enregistrement de la réservation.</small>
                             </label>
                         </div>
                     </div>
-                </div>
 
-                <div class="text-end mt-4">
                     <button type="submit" class="btn btn-primary" id="submitButton" disabled>
                         <i class="bx bx-calendar-check me-1"></i> Confirmer la réservation
                     </button>

@@ -77,4 +77,40 @@ class RestaurantApiController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Récupère à la fois les plats et les menus d'un restaurant
+     * pour l'interface d'administration des commandes
+     */
+    public function getItemsAndMenus($restaurantId)
+    {
+        try {
+            // Vérifier que le restaurant existe
+            $restaurant = Restaurant::findOrFail($restaurantId);
+            
+            // Récupérer les plats disponibles
+            $items = Item::whereHas('category', function($query) use ($restaurantId) {
+                $query->where('restaurant_id', $restaurantId);
+            })
+            ->where('is_available', 1)
+            ->get();
+            
+            // Récupérer les menus disponibles
+            $menus = Menu::where('restaurant_id', $restaurantId)
+                ->whereHas('items', function($query) {
+                    $query->where('is_available', 1);
+                })
+                ->get();
+            
+            return response()->json([
+                'items' => $items,
+                'menus' => $menus
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

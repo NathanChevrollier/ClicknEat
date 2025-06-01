@@ -121,6 +121,20 @@ class MenuController extends Controller
             return back()->withErrors(['items' => 'Certains plats sélectionnés n\'appartiennent pas au restaurant choisi.']);
         }
         
+        // Vérifier si des plats sont déjà associés à d'autres menus
+        $itemsInOtherMenus = Item::whereIn('id', $request->items)
+            ->whereNotNull('menu_id')
+            ->get();
+        
+        if ($itemsInOtherMenus->count() > 0) {
+            // Collecter les noms des plats déjà attribués pour l'affichage
+            $itemNames = $itemsInOtherMenus->pluck('name')->implode(', ');
+            
+            return back()
+                ->withInput()
+                ->withErrors(['items' => "Les plats suivants sont déjà associés à d'autres menus : {$itemNames}. Un plat ne peut être associé qu'à un seul menu."]);
+        }
+        
         // Créer le menu
         $menu = Menu::create([
             'name' => $request->name,
@@ -129,8 +143,8 @@ class MenuController extends Controller
             'restaurant_id' => $restaurant->id,
         ]);
         
-        // Associer les plats au menu
-        $menu->items()->attach($request->items);
+        // Associer les plats au menu en mettant à jour leur menu_id
+        Item::whereIn('id', $request->items)->update(['menu_id' => $menu->id]);
         
         return redirect()->route('restaurants.menus.index', $restaurant)
             ->with('success', 'Menu créé avec succès.');
@@ -225,6 +239,21 @@ class MenuController extends Controller
             return back()->withErrors(['items' => 'Certains plats sélectionnés n\'appartiennent pas au restaurant choisi.']);
         }
         
+        // Vérifier si des plats sélectionnés sont déjà associés à d'autres menus
+        $itemsInOtherMenus = Item::whereIn('id', $request->items)
+            ->whereNotNull('menu_id')
+            ->where('menu_id', '!=', $menu->id) // Exclure les plats déjà associés à ce menu
+            ->get();
+        
+        if ($itemsInOtherMenus->count() > 0) {
+            // Collecter les noms des plats déjà attribués pour l'affichage
+            $itemNames = $itemsInOtherMenus->pluck('name')->implode(', ');
+            
+            return back()
+                ->withInput()
+                ->withErrors(['items' => "Les plats suivants sont déjà associés à d'autres menus : {$itemNames}. Un plat ne peut être associé qu'à un seul menu."]);
+        }
+        
         // Mettre à jour le menu
         $menu->update([
             'name' => $request->name,
@@ -232,8 +261,13 @@ class MenuController extends Controller
             'price' => $request->price,
         ]);
         
-        // Mettre à jour les plats associés au menu
-        $menu->items()->sync($request->items);
+        // Dissocier les plats actuellement associés à ce menu
+        Item::where('menu_id', $menu->id)->update(['menu_id' => null]);
+        
+        // Associer les nouveaux plats au menu
+        if ($request->has('items')) {
+            Item::whereIn('id', $request->items)->update(['menu_id' => $menu->id]);
+        }
         
         return redirect()->route('restaurants.menus.index', $restaurant)
             ->with('success', 'Menu mis à jour avec succès.');

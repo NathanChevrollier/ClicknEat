@@ -134,9 +134,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Gestion complète des utilisateurs admin (CRUD)
             Route::resource('users', App\Http\Controllers\Admin\UserController::class);
 
-            Route::get('/restaurants', [AdminController::class, 'restaurants'])->name('restaurants');
+            Route::get('/restaurants', [AdminController::class, 'restaurants'])->name('restaurants.index');
             Route::get('/categories', [AdminController::class, 'categories'])->name('categories');
-            Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
+            // Route orders est définie comme resource plus bas
+            // Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
             Route::get('/reservations', [AdminController::class, 'reservations'])->name('reservations');
             Route::get('/reviews', [AdminController::class, 'reviews'])->name('reviews');
 
@@ -156,10 +157,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::resource('restaurants', App\Http\Controllers\Admin\RestaurantController::class);
 
             // Gestion complète des réservations admin (CRUD)
+            Route::get('reservations/get-tables', [App\Http\Controllers\Admin\ReservationController::class, 'getTables'])->name('reservations.get-tables');
+            Route::get('test-tables', [App\Http\Controllers\Admin\ReservationController::class, 'getTablesTest'])->name('reservations.test-tables');
             Route::resource('reservations', App\Http\Controllers\Admin\ReservationController::class);
+            Route::post('reservations/{reservation}/confirm', [App\Http\Controllers\Admin\ReservationController::class, 'confirm'])->name('reservations.confirm');
+            Route::post('reservations/{reservation}/complete', [App\Http\Controllers\Admin\ReservationController::class, 'complete'])->name('reservations.complete');
+            Route::post('reservations/{reservation}/cancel', [App\Http\Controllers\Admin\ReservationController::class, 'cancel'])->name('reservations.cancel');
 
             // Gestion complète des avis admin (CRUD)
             Route::resource('reviews', App\Http\Controllers\Admin\ReviewController::class);
+
+            // Route spécifique pour annuler une commande
+            Route::patch('/orders/{order}/cancel', [App\Http\Controllers\Admin\OrderController::class, 'cancel'])->name('orders.cancel');
         });
 });
 
@@ -178,6 +187,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/reservations/{reservation}/add-order', [App\Http\Controllers\ReservationController::class, 'addOrder'])->name('reservations.add-order');
     Route::post('/tables/available', [App\Http\Controllers\TableController::class, 'getAvailableTables'])->name('tables.available');
     Route::get('/restaurant/{restaurantId}/reservations', [App\Http\Controllers\ReservationController::class, 'restaurantReservations'])->name('restaurant.reservations');
+    Route::post('/restaurants/{restaurant}/check-availability', [App\Http\Controllers\RestaurantController::class, 'checkAvailability'])->name('restaurants.check-availability');
+});
+
+// Routes pour les tables
+Route::middleware(['auth'])->group(function () {
+    Route::get('/restaurants/{restaurant}/tables', [TableController::class, 'index'])->name('restaurants.tables.index');
+    Route::get('/restaurants/{restaurant}/tables/create', [TableController::class, 'create'])->name('restaurants.tables.create');
+    Route::post('/restaurants/{restaurant}/tables', [TableController::class, 'store'])->name('restaurants.tables.store');
+    Route::get('/restaurants/{restaurant}/tables/{table}', [TableController::class, 'show'])->name('restaurants.tables.show');
+    Route::get('/restaurants/{restaurant}/tables/{table}/edit', [TableController::class, 'edit'])->name('restaurants.tables.edit');
+    Route::put('/restaurants/{restaurant}/tables/{table}', [TableController::class, 'update'])->name('restaurants.tables.update');
+    Route::delete('/restaurants/{restaurant}/tables/{table}', [TableController::class, 'destroy'])->name('restaurants.tables.destroy');
+    Route::put('/restaurants/{restaurant}/tables/{table}/toggle', [TableController::class, 'toggleAvailability'])->name('restaurants.tables.toggle');
+    Route::get('/restaurants/{restaurant}/tables/availability', [TableController::class, 'availability'])->name('restaurants.tables.availability');
+    Route::post('/tables/available', [TableController::class, 'getAvailableTables'])->name('tables.available');
 });
 
 // Routes pour les avis (accessibles à tous les utilisateurs authentifiés)

@@ -445,6 +445,87 @@
             </div>
         </div>
     </div>
+    
+    <!-- Section des avis -->
+    <div class="row mt-4" id="reviews">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bx bx-star me-2"></i>Avis clients</h4>
+                    @if(auth()->check() && auth()->user()->isClient())
+                        <a href="{{ route('restaurants.reviews.create', $restaurant->id) }}" class="btn btn-primary btn-sm">
+                            <i class="bx bx-plus me-1"></i> Laisser un avis
+                        </a>
+                    @endif
+                </div>
+                
+                <div class="card-body">
+                    <!-- Note moyenne -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <h2 class="mb-2">{{ number_format($averageRating, 1) }}<small class="text-muted">/5</small></h2>
+                                    <div class="text-warning mb-3">
+                                        @for ($i = 1; $i <= 5; $i++)
+                                            @if ($i <= round($averageRating))
+                                                <i class="bx bxs-star fs-3"></i>
+                                            @else
+                                                <i class="bx bx-star fs-3"></i>
+                                            @endif
+                                        @endfor
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $reviews->count() }} avis client(s)</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-8">
+                            @if($reviews->isNotEmpty())
+                                <div class="reviews-list">
+                                    @foreach($reviews->take(5) as $review)
+                                        <div class="card mb-3" id="review-{{ $review->id }}">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <div>
+                                                        <h5 class="mb-0">{{ $review->user->name }}</h5>
+                                                        <div class="text-warning">
+                                                            @for ($i = 1; $i <= 5; $i++)
+                                                                @if ($i <= $review->rating)
+                                                                    <i class="bx bxs-star"></i>
+                                                                @else
+                                                                    <i class="bx bx-star"></i>
+                                                                @endif
+                                                            @endfor
+                                                        </div>
+                                                    </div>
+                                                    <small class="text-muted">{{ $review->created_at->format('d/m/Y') }}</small>
+                                                </div>
+                                                <p class="mb-0">{{ $review->comment }}</p>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                    
+                                    @if($reviews->count() > 5)
+                                        <a href="{{ route('restaurants.reviews.index', $restaurant->id) }}" class="btn btn-outline-primary btn-sm d-block mt-3">
+                                            Voir tous les avis ({{ $reviews->count() }})
+                                        </a>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="alert alert-info mb-0">
+                                    <i class="bx bx-info-circle me-1"></i> Aucun avis pour ce restaurant pour le moment.
+                                    @if(auth()->check() && auth()->user()->isClient())
+                                        <a href="{{ route('restaurants.reviews.create', $restaurant->id) }}" class="alert-link">Soyez le premier à donner votre avis !</a>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 

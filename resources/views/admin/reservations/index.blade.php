@@ -100,7 +100,7 @@
                                         </a>
                                     </td>
                                     <td>
-                                        <a href="{{ route('admin.users', ['user_id' => $reservation->user_id]) }}">
+                                        <a href="{{ route('admin.users.show', $reservation->user_id) }}">
                                             {{ $reservation->user->name }}
                                         </a>
                                     </td>
@@ -126,51 +126,72 @@
                                         @endswitch
                                     </td>
                                     <td>
-                                        @if($reservation->order)
-                                            <a href="{{ route('admin.orders', ['order_id' => $reservation->order->id]) }}" class="btn btn-sm btn-outline-info">
-                                                <i class="bx bx-receipt me-1"></i> Voir
+                                        @if($reservation->order_id)
+                                            @php
+                                                // On a besoin de l'objet Order pour les liens
+                                                $order = \App\Models\Order::find($reservation->order_id);
+                                            @endphp
+                                            <span class="badge bg-label-primary">Commande #{{ $reservation->order_id }}</span>
+                                            <div class="btn-group mt-1">
+                                                <a href="{{ route('admin.orders.show', $reservation->order_id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bx bx-receipt me-1"></i> Voir
+                                                </a>
+                                                <a href="{{ route('admin.orders.edit', $reservation->order_id) }}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="bx bx-edit me-1"></i> Modifier
+                                                </a>
+                                            </div>
+                                        @elseif($reservation->status !== 'cancelled' && $reservation->status !== 'completed')
+                                            <a href="{{ route('admin.orders.create', ['reservation_id' => $reservation->id, 'user_id' => $reservation->user_id, 'restaurant_id' => $reservation->restaurant_id, 'table_id' => $reservation->table_id]) }}" class="btn btn-sm btn-outline-success">
+                                                <i class="bx bx-plus me-1"></i> Créer une commande
                                             </a>
                                         @else
-                                            <span class="badge bg-label-secondary">Aucune</span>
+                                            <span class="badge bg-label-secondary">Aucune commande</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <div class="dropdown">
-                                            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                                                <i class="bx bx-dots-vertical-rounded"></i>
-                                            </button>
-                                            <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="{{ route('reservations.show', $reservation->id) }}">
-                                                    <i class="bx bx-show me-1"></i> Détails
-                                                </a>
-                                                
-                                                @if($reservation->status === 'pending')
-                                                    <form action="{{ route('reservations.confirm', $reservation->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        <button type="submit" class="dropdown-item" onclick="return confirm('Confirmer cette réservation ?')">
-                                                            <i class="bx bx-check-circle me-1"></i> Confirmer
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                                
-                                                @if($reservation->status === 'confirmed')
-                                                    <form action="{{ route('reservations.complete', $reservation->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        <button type="submit" class="dropdown-item" onclick="return confirm('Marquer cette réservation comme terminée ?')">
-                                                            <i class="bx bx-check-double me-1"></i> Terminer
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                                
-                                                @if($reservation->status === 'pending' || $reservation->status === 'confirmed')
-                                                    <form action="{{ route('reservations.cancel', $reservation->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        <button type="submit" class="dropdown-item" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')">
-                                                            <i class="bx bx-x-circle me-1"></i> Annuler
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                            </div>
+                                        <div class="d-flex gap-1">
+                                            <a href="/admin/reservations/{{ $reservation->id }}" class="btn btn-sm btn-info">
+                                                <i class="bx bx-show me-1"></i> Détails
+                                            </a>
+                                            
+                                            <a href="{{ route('admin.reservations.edit', $reservation) }}" class="btn btn-sm btn-primary">
+                                                <i class="bx bx-edit me-1"></i> Modifier
+                                            </a>
+                                            
+                                            @if($reservation->status === 'pending')
+                                                <form action="{{ route('admin.reservations.confirm', $reservation) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confirmer cette réservation ?')">
+                                                        <i class="bx bx-check-circle me-1"></i> Confirmer
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            @if($reservation->status === 'confirmed')
+                                                <form action="{{ route('admin.reservations.complete', $reservation) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Marquer cette réservation comme terminée ?')">
+                                                        <i class="bx bx-check-double me-1"></i> Terminer
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            @if($reservation->status === 'pending' || $reservation->status === 'confirmed')
+                                                <form action="{{ route('admin.reservations.cancel', $reservation) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')">
+                                                        <i class="bx bx-x-circle me-1"></i> Annuler
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            <form action="{{ route('admin.reservations.destroy', $reservation) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette réservation ?')">
+                                                    <i class="bx bx-trash me-1"></i> Supprimer
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>

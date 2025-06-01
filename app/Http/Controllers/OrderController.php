@@ -111,6 +111,9 @@ class OrderController extends Controller
             
             $order->save();
             
+            // Structure pour suivre les items à attacher
+            $itemsToAttach = [];
+            
             // Ajouter les items à la commande
             if ($request->has('items')) {
                 foreach ($request->items as $itemId => $itemData) {
@@ -119,15 +122,44 @@ class OrderController extends Controller
                     if ($quantity > 0) {
                         $item = Item::findOrFail($itemId);
                         $price = $item->price;
+                        $menuId = null;
                         
-                        $order->items()->attach($item->id, [
-                            'quantity' => $quantity,
-                            'price' => $price,
-                        ]);
+                        // Vérifier si l'item fait partie d'un menu
+                        if ($item->menu_id) {
+                            $menuId = $item->menu_id;
+                        }
+                        
+                        // Si le plat est déjà dans la commande avec un autre menu, on le remplace
+                        // car un plat ne peut être associé qu'à un seul menu
+                        if (isset($itemsToAttach[$item->id])) {
+                            // Si c'est déjà un plat du même menu, on cumule les quantités
+                            if (isset($itemsToAttach[$item->id]['menu_id']) && $itemsToAttach[$item->id]['menu_id'] == $menuId) {
+                                $itemsToAttach[$item->id]['quantity'] += $quantity;
+                            } else {
+                                // Sinon on remplace (plat individuel ou d'un autre menu)
+                                $itemsToAttach[$item->id] = [
+                                    'quantity' => $quantity, 
+                                    'price' => $price, 
+                                    'menu_id' => $menuId
+                                ];
+                            }
+                        } else {
+                            // Nouveau plat
+                            $itemsToAttach[$item->id] = [
+                                'quantity' => $quantity, 
+                                'price' => $price, 
+                                'menu_id' => $menuId
+                            ];
+                        }
                         
                         $totalPrice += $price * $quantity;
                     }
                 }
+            }
+            
+            // Attacher tous les items à la commande
+            if (!empty($itemsToAttach)) {
+                $order->items()->sync($itemsToAttach);
             }
             
             // Mettre à jour le prix total
@@ -252,8 +284,8 @@ class OrderController extends Controller
             // Mettre à jour les notes de la commande
             $order->notes = $request->notes ?? '';
             
-            // Supprimer tous les items existants
-            $order->items()->detach();
+            // Structure pour suivre les items à attacher
+            $itemsToAttach = [];
             
             // Ajouter les nouveaux items à la commande
             if ($request->has('items')) {
@@ -263,15 +295,47 @@ class OrderController extends Controller
                     if ($quantity > 0) {
                         $item = Item::findOrFail($itemId);
                         $price = $item->price;
+                        $menuId = null;
                         
-                        $order->items()->attach($item->id, [
-                            'quantity' => $quantity,
-                            'price' => $price,
-                        ]);
+                        // Vérifier si l'item fait partie d'un menu
+                        if ($item->menu_id) {
+                            $menuId = $item->menu_id;
+                        }
+                        
+                        // Si le plat est déjà dans la commande avec un autre menu, on le remplace
+                        // car un plat ne peut être associé qu'à un seul menu
+                        if (isset($itemsToAttach[$item->id])) {
+                            // Si c'est déjà un plat du même menu, on cumule les quantités
+                            if (isset($itemsToAttach[$item->id]['menu_id']) && $itemsToAttach[$item->id]['menu_id'] == $menuId) {
+                                $itemsToAttach[$item->id]['quantity'] += $quantity;
+                            } else {
+                                // Sinon on remplace (plat individuel ou d'un autre menu)
+                                $itemsToAttach[$item->id] = [
+                                    'quantity' => $quantity, 
+                                    'price' => $price, 
+                                    'menu_id' => $menuId
+                                ];
+                            }
+                        } else {
+                            // Nouveau plat
+                            $itemsToAttach[$item->id] = [
+                                'quantity' => $quantity, 
+                                'price' => $price, 
+                                'menu_id' => $menuId
+                            ];
+                        }
                         
                         $totalPrice += $price * $quantity;
                     }
                 }
+            }
+            
+            // Remplacer tous les items de la commande par les nouveaux
+            if (!empty($itemsToAttach)) {
+                $order->items()->sync($itemsToAttach);
+            } else {
+                // Si aucun item n'est sélectionné, détacher tous les items
+                $order->items()->detach();
             }
             
             // Mettre à jour le prix total

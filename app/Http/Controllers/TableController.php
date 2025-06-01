@@ -237,54 +237,79 @@ class TableController extends Controller
             'restaurant_id' => 'required|exists:restaurants,id',
             'reservation_date' => 'required|date|after:now',
             'guests_number' => 'required|integer|min:1|max:20',
+            'exclude_reservation_id' => 'nullable|integer|exists:reservations,id',
         ]);
         
         $restaurant = Restaurant::findOrFail($request->restaurant_id);
         $reservationDate = new \DateTime($request->reservation_date);
         $guestsNumber = $request->guests_number;
+        $excludeReservationId = $request->exclude_reservation_id;
         
-        // Récupérer toutes les tables du restaurant avec une capacité suffisante
-        $tables = $restaurant->tables()
+        // Journaliser la requête pour débogage
+        \Illuminate\Support\Facades\Log::info('Recherche de tables pour restaurant_id: ' . $request->restaurant_id . ', guests: ' . $guestsNumber);
+        
+        // Requête SQL directe pour récupérer toutes les tables physiques du restaurant
+        $tablesQuery = \App\Models\Table::where('restaurant_id', $restaurant->id)
             ->where('capacity', '>=', $guestsNumber)
-            ->where('is_available', true)
-            ->get();
+            ->where('is_available', true);
+            
+        \Illuminate\Support\Facades\Log::info('Requête SQL tables: ' . $tablesQuery->toSql());
+        $tables = $tablesQuery->get();
+        \Illuminate\Support\Facades\Log::info('Nombre de tables trouvées: ' . $tables->count());
         
-        // Filtrer les tables qui sont déjà réservées à cette date/heure
-        $availableTables = $tables->filter(function($table) use ($reservationDate) {
-            // Vérifier si la table est disponible à cette date/heure
-            $isAvailable = true;
+        // Récupérer les réservations chevauchantes
+        $startTime = (clone $reservationDate)->modify('-2 hours');
+        $endTime = (clone $reservationDate)->modify('+2 hours');
+        
+        $reservationsQuery = \App\Models\Reservation::where('restaurant_id', $restaurant->id)
+            ->whereBetween('reservation_date', [$startTime->format('Y-m-d H:i:s'), $endTime->format('Y-m-d H:i:s')])
+            ->where('status', '!=', 'cancelled');
             
-            // Récupérer les réservations pour cette table
-            $reservations = $table->reservations()
-                ->where('status', '!=', 'cancelled')
-                ->get();
-            
-            foreach ($reservations as $reservation) {
-                $reservationDateTime = new \DateTime($reservation->reservation_date);
-                
-                // Vérifier si la réservation chevauche la date/heure demandée (2h avant/après)
-                $startTime = (clone $reservationDate)->modify('-2 hours');
-                $endTime = (clone $reservationDate)->modify('+2 hours');
-                
-                if ($reservationDateTime >= $startTime && $reservationDateTime <= $endTime) {
-                    $isAvailable = false;
-                    break;
-                }
-            }
-            
-            return $isAvailable;
+        // Exclure la réservation en cours de modification si spécifié
+        if ($excludeReservationId) {
+            $reservationsQuery->where('id', '!=', $excludeReservationId);
+        }
+        
+        $reservedTableIds = $reservationsQuery->pluck('table_id')->toArray();
+        \Illuminate\Support\Facades\Log::info('Tables réservées IDs: ' . implode(', ', $reservedTableIds));
+        
+        // Filtrer les tables disponibles (celles qui ne sont pas déjà réservées)
+        $availableTables = $tables->filter(function($table) use ($reservedTableIds) {
+            return !in_array($table->id, $reservedTableIds);
         });
         
+        // Ajouter la table actuelle si elle existe et qu'elle a été exclue
+        if ($excludeReservationId) {
+            $currentReservation = \App\Models\Reservation::find($excludeReservationId);
+            if ($currentReservation) {
+                $currentTableId = $currentReservation->table_id;
+                $currentTableIncluded = $availableTables->contains('id', $currentTableId);
+                
+                if (!$currentTableIncluded) {
+                    // Récupérer la table actuelle si elle n'est pas déjà incluse
+                    $currentTable = \App\Models\Table::find($currentTableId);
+                    if ($currentTable && $currentTable->capacity >= $guestsNumber) {
+                        $availableTables->push($currentTable);
+                    }
+                }
+            }
+        }
+        
         return response()->json([
+            'success' => true,
             'tables' => $availableTables->map(function($table) {
                 return [
                     'id' => $table->id,
                     'name' => $table->name,
                     'capacity' => $table->capacity,
-                    'location' => $table->location ?: 'Non spécifié',
+                    'location' => $table->location ?: '',
                     'description' => $table->description,
+                    'is_available' => true
                 ];
-            })
+            }),
+            'message' => $availableTables->count() > 0 
+                ? 'Tables disponibles trouvées.' 
+                : 'Aucune table disponible pour cette date et ce nombre de personnes.'
         ]);
     }
 
@@ -310,4 +335,6 @@ class TableController extends Controller
         return redirect()->route('restaurants.tables.index', $restaurant->id)
                          ->with('success', "La table {$table->name} est maintenant {$status}.");
     }
+
+
 }

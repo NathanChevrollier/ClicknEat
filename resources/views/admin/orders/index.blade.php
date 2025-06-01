@@ -34,7 +34,7 @@
                             <td>{{ $order->id }}</td>
                             <td>{{ $order->user->name }}</td>
                             <td>{{ $order->restaurant->name }}</td>
-                            <td>{{ number_format($order->total_price / 100, 2) }} €</td>
+                            <td>{{ number_format($order->total_amount / 100, 2) }} €</td>
                             <td>
                                 @switch($order->status)
                                     @case('pending')
@@ -64,6 +64,16 @@
                                 <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-sm btn-info">
                                     <i class="bx bx-show me-1"></i> Voir
                                 </a>
+                                <a href="{{ route('admin.orders.edit', $order->id) }}" class="btn btn-sm btn-primary">
+                                    <i class="bx bx-edit me-1"></i> Modifier
+                                </a>
+                                <a href="#" class="btn btn-sm btn-danger" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) document.getElementById('delete-order-{{ $order->id }}').submit();">
+                                    <i class="bx bx-trash me-1"></i> Supprimer
+                                </a>
+                                <form id="delete-order-{{ $order->id }}" action="{{ route('admin.orders.destroy', $order->id) }}" method="POST" style="display: none;">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
                                 @if(in_array($order->status, ['pending', 'confirmed']))
                                 <a href="#" class="btn btn-sm btn-danger" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir annuler cette commande ?')) document.getElementById('cancel-order-{{ $order->id }}').submit();">
                                     <i class="bx bx-x-circle me-1"></i> Annuler

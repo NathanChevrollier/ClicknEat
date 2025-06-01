@@ -169,14 +169,19 @@ class ReservationController extends Controller
                 ->with('error', 'Ce restaurant n\'accepte pas les réservations.');
         }
         
-        // Vérifier qu'il y a au moins une table disponible dans le restaurant
-        $availableTables = $restaurant->tables()->where('is_available', true)->count();
-        if ($availableTables === 0) {
+        // Récupérer directement les vraies tables de la BDD
+        $tables = \DB::table('tables')
+            ->where('restaurant_id', $restaurantId)
+            ->where('is_available', true)
+            ->get();
+        
+        if ($tables->count() === 0) {
             return redirect()->route('restaurants.show', $restaurant->id)
                 ->with('error', 'Aucune table n\'est disponible dans ce restaurant pour le moment.');
         }
         
-        return view('reservations.create', compact('restaurant'));
+        // Afficher les vraies tables dans le formulaire
+        return view('reservations.create', compact('restaurant', 'tables'));
     }
 
     /**
@@ -296,7 +301,13 @@ class ReservationController extends Controller
      */
     public function edit($id)
     {
-        $reservation = Reservation::with(['restaurant', 'table'])->findOrFail($id);
+        // Charger la réservation avec toutes les relations nécessaires
+        $reservation = Reservation::with([
+            'restaurant', 
+            'table', 
+            'order', 
+            'order.items'
+        ])->findOrFail($id);
         
         // Vérifier que l'utilisateur a le droit de modifier cette réservation
         $user = Auth::user();
@@ -312,7 +323,17 @@ class ReservationController extends Controller
         
         $restaurant = $reservation->restaurant;
         
-        return view('reservations.edit', compact('reservation', 'restaurant'));
+        // Récupérer directement les vraies tables de la BDD
+        $tables = \DB::table('tables')
+            ->where('restaurant_id', $restaurant->id)
+            ->where('is_available', true)
+            ->orWhere('id', $reservation->table_id) // Inclure la table actuelle même si elle n'est pas disponible
+            ->get();
+        
+        // Charger les catégories et les plats pour le restaurant
+        $categories = $restaurant->categories()->with('items')->get();
+        
+        return view('reservations.edit', compact('reservation', 'restaurant', 'categories', 'tables'));
     }
 
     /**
@@ -335,12 +356,17 @@ class ReservationController extends Controller
         }
         
         $request->validate([
-            'reservation_date' => 'required|date|after:now',
-            'guests_number' => 'required|integer|min:1|max:20',
+            'date' => 'required|date|after:now',
+            'time' => 'required|string',
+            'guests' => 'required|integer|min:1|max:20',
             'table_id' => 'required|exists:tables,id',
             'special_requests' => 'nullable|string|max:500',
-            'add_order' => 'nullable|boolean'
+            'add_order' => 'nullable|boolean',
+            'keep_current_items' => 'nullable|in:0,1'
         ]);
+        
+        // Combiner la date et l'heure
+        $reservationDateTime = date('Y-m-d H:i:s', strtotime($request->date . ' ' . $request->time));
         
         // Vérifier que la table appartient au restaurant
         $table = Table::findOrFail($request->table_id);
@@ -350,14 +376,14 @@ class ReservationController extends Controller
         }
         
         // Vérifier que la table est disponible (en excluant la réservation actuelle)
-        $reservationDate = new \DateTime($request->reservation_date);
+        $reservationDate = new \DateTime($reservationDateTime);
         if (!$this->isTableAvailable($table->id, $reservationDate, $reservation->id)) {
             return redirect()->route('reservations.edit', $reservation->id)
                 ->with('error', 'Cette table n\'est plus disponible pour cette date et heure.');
         }
         
         // Vérifier que la capacité de la table est suffisante
-        if ($table->capacity < $request->guests_number) {
+        if ($table->capacity < $request->guests) {
             return redirect()->route('reservations.edit', $reservation->id)
                 ->with('error', 'Cette table ne peut pas accueillir autant de personnes.');
         }
@@ -365,10 +391,50 @@ class ReservationController extends Controller
         // Mettre à jour la réservation
         $reservation->table_id = $table->id;
         $reservation->reservation_date = $reservationDate;
-        $reservation->guests_number = $request->guests_number;
+        $reservation->guests_number = $request->guests;
         $reservation->special_requests = $request->special_requests;
         
         $reservation->save();
+        
+        // Gérer les plats précommandés
+        if ($request->has('keep_current_items') && $request->keep_current_items == '1') {
+            // L'utilisateur a choisi de conserver les plats actuels, ne pas modifier les plats précommandés
+        } else if ($request->has('items')) {
+            // L'utilisateur a modifié les plats précommandés
+            // Si une commande existe déjà, la mettre à jour
+            if ($reservation->order_id) {
+                $order = Order::find($reservation->order_id);
+                
+                // Supprimer les anciens plats
+                DB::table('order_items')->where('order_id', $order->id)->delete();
+                
+                // Ajouter les nouveaux plats
+                $totalPrice = 0;
+                foreach ($request->items as $itemId => $itemData) {
+                    if ($itemData['quantity'] > 0) {
+                        $item = Item::find($itemId);
+                        if ($item && $item->restaurant_id == $reservation->restaurant_id) {
+                            $orderItem = [
+                                'order_id' => $order->id,
+                                'item_id' => $itemId,
+                                'quantity' => $itemData['quantity'],
+                                'price' => $item->price,
+                                'special_instructions' => $itemData['special_instructions'] ?? null,
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            ];
+                            
+                            DB::table('order_items')->insert($orderItem);
+                            $totalPrice += $item->price * $itemData['quantity'];
+                        }
+                    }
+                }
+                
+                // Mettre à jour le prix total de la commande
+                $order->total_price = $totalPrice;
+                $order->save();
+            }
+        }
         
         // Si l'utilisateur souhaite ajouter une commande et qu'il n'y en a pas déjà une
         if ($request->has('add_order') && $request->add_order == 1 && !$reservation->order_id) {

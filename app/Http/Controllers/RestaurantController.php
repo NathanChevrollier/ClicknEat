@@ -179,21 +179,41 @@ class RestaurantController extends Controller
     /**
      * Affiche les détails d'un restaurant
      */
-    public function show($id) {
-        $restaurant = Restaurant::with(['categories', 'categories.items', 'tables'])->findOrFail($id);
+    public function show(Restaurant $restaurant)
+    {
+        // Chargement des relations nécessaires
+        $restaurant->load(['categories', 'categories.items' => function($query) {
+            $query->where('is_active', true);
+        }]);
         
-        // Vérification des droits pour les restaurateurs
-        $user = Auth::user();
-        if ($user && $user->isRestaurateur() && $restaurant->user_id !== $user->id) {
-            // Si c'est un restaurateur mais pas son restaurant, rediriger vers la vue publique
-            return redirect()->route('restaurants.public.show', $restaurant->id);
+        // Nombre total de tables et tables disponibles
+        $totalTables = $restaurant->total_tables ?: 0;
+        $availableTables = $totalTables;
+        
+        // Si le restaurant accepte les réservations, calculer le nombre de tables disponibles
+        if ($restaurant->accepts_reservations && $totalTables > 0) {
+            $reservedTables = Reservation::where('restaurant_id', $restaurant->id)
+                                    ->whereDate('date', now()->toDateString())
+                                    ->whereIn('status', ['pending', 'confirmed'])
+                                    ->sum('number_of_people');
+            
+            $availableTables = max(0, $totalTables - ceil($reservedTables / 4)); // On estime 4 personnes par table
         }
         
-        // Calculer le nombre de tables disponibles
-        $totalTables = $restaurant->tables->count();
-        $availableTables = $restaurant->tables->where('is_available', true)->count();
+        // Récupérer les avis du restaurant
+        $reviews = \App\Models\Review::where('restaurant_id', $restaurant->id)
+            ->where('is_approved', true) // Seulement les avis approuvés
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
         
-        return view('restaurants.show', compact('restaurant', 'totalTables', 'availableTables'));
+        // Calculer la moyenne des notes
+        $averageRating = 0;
+        if ($reviews->count() > 0) {
+            $averageRating = $reviews->avg('rating');
+        }
+        
+        return view('restaurants.show', compact('restaurant', 'totalTables', 'availableTables', 'reviews', 'averageRating'));
     }
 
     /**
@@ -278,5 +298,60 @@ class RestaurantController extends Controller
         }])->orderBy('name')->get();
         
         return view('restaurants.categories_items', compact('restaurant', 'categories'));
+    }
+    
+    /**
+     * Vérifie la disponibilité des tables d'un restaurant
+     */
+    public function checkAvailability(Request $request, Restaurant $restaurant) {
+        // Validation des données
+        $request->validate([
+            'date' => 'required|date|after:now',
+            'time' => 'required|string',
+            'guests' => 'required|integer|min:1',
+            'exclude_reservation_id' => 'nullable|integer|exists:reservations,id',
+        ]);
+        
+        // Combiner la date et l'heure
+        $reservationDateTime = new \DateTime($request->date . ' ' . $request->time);
+        $guestsNumber = $request->guests;
+        $excludeReservationId = $request->exclude_reservation_id;
+        
+        // Récupérer toutes les tables du restaurant qui peuvent accueillir le nombre de personnes
+        $tables = $restaurant->tables()
+            ->where('capacity', '>=', $guestsNumber)
+            ->where('is_available', true)
+            ->get();
+        
+        // Calculer les créneaux horaires pour la vérification (une réservation dure environ 2 heures)
+        $startTime = (clone $reservationDateTime)->modify('-1 hour');
+        $endTime = (clone $reservationDateTime)->modify('+3 hours');
+        
+        // Récupérer les réservations qui se chevauchent
+        $overlappingReservations = \App\Models\Reservation::where('restaurant_id', $restaurant->id)
+            ->whereBetween('reservation_date', [$startTime->format('Y-m-d H:i:s'), $endTime->format('Y-m-d H:i:s')])
+            ->where('status', '!=', 'cancelled');
+        
+        // Exclure la réservation en cours de modification si spécifié
+        if ($excludeReservationId) {
+            $overlappingReservations = $overlappingReservations->where('id', '!=', $excludeReservationId);
+        }
+        
+        // Récupérer les IDs des tables déjà réservées
+        $reservedTableIds = $overlappingReservations->pluck('table_id')->toArray();
+        
+        // Filtrer les tables disponibles
+        $availableTables = $tables->filter(function($table) use ($reservedTableIds) {
+            return !in_array($table->id, $reservedTableIds);
+        })->values();
+        
+        return response()->json([
+            'success' => true,
+            'available' => $availableTables->count() > 0,
+            'tables' => $availableTables,
+            'total_tables' => $tables->count(),
+            'available_tables' => $availableTables->count(),
+            'datetime' => $reservationDateTime->format('Y-m-d H:i:s')
+        ]);
     }
 }

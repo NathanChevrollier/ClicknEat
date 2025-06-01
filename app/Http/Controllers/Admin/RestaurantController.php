@@ -55,7 +55,19 @@ class RestaurantController extends Controller
         
         $itemsCount = $items->count();
         
-        return view('admin.restaurants.show', compact('restaurant', 'items', 'itemsCount'));
+        // Récupérer les avis du restaurant
+        $reviews = \App\Models\Review::where('restaurant_id', $restaurant->id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Calculer la moyenne des notes
+        $averageRating = 0;
+        if ($reviews->count() > 0) {
+            $averageRating = $reviews->avg('rating');
+        }
+        
+        return view('admin.restaurants.show', compact('restaurant', 'items', 'itemsCount', 'reviews', 'averageRating'));
     }
 
     /**

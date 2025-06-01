@@ -16,8 +16,10 @@ class Order extends Model
         'user_id',
         'restaurant_id',
         'status',
-        'total_price',
+        'total_amount',
+        'delivery_address',
         'notes',
+        'reservation_id',
     ];
 
     /**
@@ -77,6 +79,24 @@ class Order extends Model
     {
         return $this->belongsToMany(Item::class, 'order_items')
             ->withPivot('quantity', 'price')
+            ->withTimestamps();
+    }
+
+    /**
+     * Réservation associée à la commande
+     */
+    public function reservation()
+    {
+        return $this->belongsTo(Reservation::class);
+    }
+    
+    /**
+     * Menus inclus dans la commande
+     */
+    public function menus()
+    {
+        return $this->belongsToMany(Menu::class, 'order_menus')
+            ->withPivot('quantity')
             ->withTimestamps();
     }
 }

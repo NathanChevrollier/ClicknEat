@@ -52,6 +52,7 @@
                     <form id="reservationForm" action="{{ route('reservations.update', $reservation->id) }}" method="POST">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="keep_current_items" id="keepCurrentItemsInput" value="0">
                         
                         <!-- Étape 1: Date, heure et nombre de personnes -->
                         <div id="step1" class="reservation-step">
@@ -83,7 +84,8 @@
                                 </div>
                             </div>
                             
-                            <div class="mt-3 text-end">
+                            <div class="mt-3 d-flex justify-content-between">
+                                <button type="button" id="skipAvailabilityCheck" class="btn btn-outline-secondary">Continuer sans vérifier</button>
                                 <button type="button" id="checkAvailability" class="btn btn-primary">Vérifier la disponibilité</button>
                             </div>
                         </div>
@@ -95,21 +97,40 @@
                             <div id="tablesContainer" class="row">
                                 <!-- Les tables disponibles seront affichées ici -->
                                 <div class="col-12">
-                                    <div class="alert alert-info">
-                                        <i class="bx bx-info-circle me-1"></i>
-                                        Veuillez d'abord vérifier la disponibilité.
+                                    <div class="mb-3">
+                                        <label for="table_id" class="form-label">TABLE</label>
+                                        <select name="table_id" id="table_id" class="form-select" required>
+                                            <option value="">Sélectionner une table</option>
+                                            @php
+                                                // Récupérer directement les tables de la base de données
+                                                $dbTables = DB::table('tables')
+                                                    ->where('restaurant_id', $restaurant->id)
+                                                    ->where(function($query) use ($reservation) {
+                                                        $query->where('is_available', true)
+                                                              ->orWhere('id', $reservation->table_id); // Inclure la table actuelle
+                                                    })
+                                                    ->get();
+                                            @endphp
+                                            @foreach($dbTables as $table)
+                                                <option value="{{ $table->id }}" {{ $reservation->table_id == $table->id ? 'selected' : '' }}>
+                                                    Table {{ $table->name }} ({{ $table->capacity }} personnes) - {{ $table->location }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                             </div>
                             
-                            <input type="hidden" id="table_id" name="table_id" value="{{ old('table_id', $reservation->table_id) }}">
                             @error('table_id')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                             
-                            <div class="mt-3">
+                            <div class="mt-4 d-flex justify-content-between">
                                 <button type="button" id="backToStep1" class="btn btn-outline-secondary">Retour</button>
-                                <button type="button" id="goToStep3" class="btn btn-primary float-end">Continuer</button>
+                                <div>
+                                    <button type="button" id="skipTableSelection" class="btn btn-outline-secondary me-2">Continuer sans changer la table</button>
+                                    <button type="button" id="goToStep3" class="btn btn-primary">Continuer</button>
+                                </div>
                             </div>
                         </div>
                         
@@ -138,12 +159,12 @@
                                                                         <span class="fw-bold">{{ number_format($item->price, 2) }} u20ac</span>
                                                                         <div class="d-flex align-items-center">
                                                                             <button type="button" class="btn btn-sm btn-outline-primary decrease-quantity" data-item-id="{{ $item->id }}">-</button>
-                                                                            <input type="number" class="form-control form-control-sm mx-2 item-quantity" value="{{ $reservation->order && $reservation->order->items->contains($item->id) ? $reservation->order->items->find($item->id)->pivot->quantity : 0 }}" min="0" data-item-id="{{ $item->id }}">
+                                                                            <input type="number" class="form-control form-control-sm mx-2 item-quantity" name="items[{{ $item->id }}][quantity]" value="{{ $reservation->order && $reservation->order->items->contains($item->id) ? $reservation->order->items->find($item->id)->pivot->quantity : 0 }}" min="0" data-item-id="{{ $item->id }}">
                                                                             <button type="button" class="btn btn-sm btn-outline-primary increase-quantity" data-item-id="{{ $item->id }}">+</button>
                                                                         </div>
                                                                     </div>
                                                                     <div class="mt-2 special-instructions-container" style="{{ $reservation->order && $reservation->order->items->contains($item->id) ? 'display: block;' : 'display: none;' }}">
-                                                                        <input type="text" class="form-control form-control-sm" placeholder="Instructions spéciales" data-item-id="{{ $item->id }}" value="{{ $reservation->order && $reservation->order->items->contains($item->id) ? $reservation->order->items->find($item->id)->pivot->special_instructions : '' }}">
+                                                                        <input type="text" class="form-control form-control-sm" name="items[{{ $item->id }}][special_instructions]" placeholder="Instructions spéciales" data-item-id="{{ $item->id }}" value="{{ $reservation->order && $reservation->order->items->contains($item->id) ? $reservation->order->items->find($item->id)->pivot->special_instructions : '' }}">
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -173,9 +194,12 @@
                                 <div class="form-text">Indiquez ici toute demande particulière concernant votre réservation.</div>
                             </div>
                             
-                            <div class="mt-3">
+                            <div class="mt-3 d-flex justify-content-between">
                                 <button type="button" id="backToStep2" class="btn btn-outline-secondary">Retour</button>
-                                <button type="submit" class="btn btn-success float-end">Mettre à jour la réservation</button>
+                                <div>
+                                    <button type="submit" id="keepCurrentItems" class="btn btn-outline-secondary me-2">Conserver les plats actuels</button>
+                                    <button type="submit" class="btn btn-success">Mettre à jour la réservation</button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -190,6 +214,12 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Gérer le bouton pour conserver les plats actuels
+        document.getElementById('keepCurrentItems').addEventListener('click', function(e) {
+            // Définir la valeur du champ caché sur 1
+            document.getElementById('keepCurrentItemsInput').value = '1';
+            // Laisser le formulaire se soumettre normalement
+        });
         // Initialisation de Flatpickr pour la date
         flatpickr("#date", {
             minDate: "today",
@@ -210,8 +240,8 @@
         // Conteneur pour les tables disponibles
         const tablesContainer = document.getElementById('tablesContainer');
         
-        // Input pour stocker l'ID de la table sélectionnée
-        const tableIdInput = document.getElementById('table_id');
+        // Référence au select de tables
+        const tableSelect = document.getElementById('table_select');
         
         // Vérifier la disponibilité des tables
         checkAvailabilityBtn.addEventListener('click', function() {
@@ -227,14 +257,23 @@
             // Afficher un indicateur de chargement
             tablesContainer.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div></div>';
             
-            // Requête AJAX pour vérifier la disponibilité
-            fetch('{{ route("restaurants.check-availability", $restaurant->id) }}', {
+            // Formater la date et l'heure pour les envoyer au serveur
+            const dateTime = new Date(`${date}T${time}`);
+            const formattedDateTime = dateTime.toISOString();
+            
+            // Requête AJAX pour vérifier la disponibilité des tables
+            fetch('{{ route("tables.available") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ date, time, guests })
+                body: JSON.stringify({ 
+                    restaurant_id: {{ $restaurant->id }},
+                    reservation_date: formattedDateTime,
+                    guests_number: guests,
+                    exclude_reservation_id: {{ $reservation->id }}
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -259,17 +298,30 @@
                         });
                     }
                     
-                    // Afficher les tables disponibles
+                    // Créer des cartes pour les tables disponibles comme dans create.blade.php
                     let tablesHtml = '';
                     
+                    // Ajouter les tables disponibles
                     data.tables.forEach(table => {
                         const isSelected = table.id === currentTableId;
+                        const selectedClass = isSelected ? 'border-primary bg-light' : '';
+                        const checkedAttr = isSelected ? 'checked' : '';
+                        const locationText = table.location || 'Non spécifié';
+                        
                         tablesHtml += `
-                            <div class="col-md-4 mb-3">
-                                <div class="table-option ${isSelected ? 'selected' : ''}" data-table-id="${table.id}">
-                                    <h6>${table.name}</h6>
-                                    <p class="mb-1"><i class="bx bx-user me-1"></i> ${table.capacity} personnes</p>
-                                    ${table.location ? `<p class="mb-0 text-muted"><i class="bx bx-map me-1"></i> ${table.location}</p>` : ''}
+                            <div class="card mb-3 table-option ${selectedClass}" data-table-id="${table.id}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-1">Table ${table.name}</h5>
+                                            <p class="mb-0"><i class="bx bx-user me-1"></i> ${table.capacity} personnes</p>
+                                            <p class="mb-0 text-muted"><i class="bx bx-map me-1"></i> ${locationText}</p>
+                                            ${table.description ? `<p class="mb-0 small">${table.description}</p>` : ''}
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input table-radio" type="radio" name="table_id" value="${table.id}" id="table-${table.id}" ${checkedAttr} required>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -280,14 +332,22 @@
                     // Ajouter des écouteurs d'événements pour la sélection de table
                     document.querySelectorAll('.table-option').forEach(tableOption => {
                         tableOption.addEventListener('click', function() {
-                            // Supprimer la classe 'selected' de toutes les tables
-                            document.querySelectorAll('.table-option').forEach(t => t.classList.remove('selected'));
+                            const tableId = this.dataset.tableId;
+                            document.getElementById(`table-${tableId}`).checked = true;
                             
-                            // Ajouter la classe 'selected' à la table cliquée
-                            this.classList.add('selected');
+                            // Mettre à jour la classe selected
+                            document.querySelectorAll('.table-option').forEach(el => {
+                                el.classList.remove('border-primary');
+                                el.classList.remove('bg-light');
+                            });
+                            this.classList.add('border-primary');
+                            this.classList.add('bg-light');
                             
-                            // Mettre à jour l'input caché avec l'ID de la table
-                            tableIdInput.value = this.getAttribute('data-table-id');
+                            // Activer le bouton de soumission si nécessaire
+                            const submitButton = document.querySelector('button[type="submit"]');
+                            if (submitButton) {
+                                submitButton.disabled = false;
+                            }
                         });
                     });
                     
@@ -452,11 +512,124 @@
         // Initialiser la liste des plats sélectionnés
         updateSelectedItemsList();
         
-        // Afficher directement l'étape 3 si on est en mode édition
-        @if(old('table_id', $reservation->table_id))
+        // Configurer les boutons de navigation entre les étapes
+        document.getElementById('skipAvailabilityCheck').addEventListener('click', function() {
+            // Afficher directement l'étape 2 sans vérifier la disponibilité
+            if (tableIdInput.value) {
+                // Passer directement à l'étape 2
+                step1.style.display = 'none';
+                step3.style.display = 'none';
+                step2.style.display = 'block';
+            } else {
+                // Si pas de table sélectionnée auparavant, créer une option par défaut
+                const tablesHtml = `
+                    <div class="col-md-12">
+                        <div class="alert alert-warning">
+                            <i class="bx bx-info-circle me-1"></i>
+                            Vous avez choisi de continuer sans vérifier la disponibilité. Votre réservation conservera la table actuellement attribuée.
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="table-option selected" data-table-id="{{ $reservation->table_id }}">
+                                <h6>{{ $reservation->table->name }}</h6>
+                                <p class="mb-1"><i class="bx bx-user me-1"></i> {{ $reservation->table->capacity }} personnes</p>
+                                @if($reservation->table->location)
+                                    <p class="mb-0 text-muted"><i class="bx bx-map me-1"></i> {{ $reservation->table->location }}</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                tablesContainer.innerHTML = tablesHtml;
+                
+                // Ajouter des écouteurs pour la sélection de table
+                document.querySelectorAll('.table-option').forEach(tableOption => {
+                    tableOption.addEventListener('click', function() {
+                        document.querySelectorAll('.table-option').forEach(t => t.classList.remove('selected'));
+                        this.classList.add('selected');
+                        tableIdInput.value = this.getAttribute('data-table-id');
+                    });
+                });
+                
+                // Passer à l'étape 2
+                step1.style.display = 'none';
+                step3.style.display = 'none';
+                step2.style.display = 'block';
+            }
+        });
+        
+        document.getElementById('backToStep1').addEventListener('click', function() {
+            step2.style.display = 'none';
+            step3.style.display = 'none';
+            step1.style.display = 'block';
+        });
+        
+        document.getElementById('backToStep2').addEventListener('click', function() {
             step1.style.display = 'none';
+            step3.style.display = 'none';
+            step2.style.display = 'block';
+        });
+        
+        // Passer à l'étape suivante lorsqu'on clique sur le bouton Continuer
+        document.getElementById('goToStep3').addEventListener('click', function() {
+            step1.style.display = 'none';
+            step2.style.display = 'none';
             step3.style.display = 'block';
-        @endif
+        });
+        
+        // Passer directement à l'étape 3 sans changer la table
+        document.getElementById('skipTableSelection').addEventListener('click', function() {
+            // S'assurer que la table actuelle reste sélectionnée
+            tableIdInput.value = {{ $reservation->table_id }};
+            
+            // Passer à l'étape 3
+            step1.style.display = 'none';
+            step2.style.display = 'none';
+            step3.style.display = 'block';
+        });
+        
+        // En mode édition, préparer les données des tables
+        if (tableIdInput.value) {
+            // Si une table est déjà sélectionnée, préremplir les tables disponibles
+            const availabilityData = {
+                success: true,
+                tables: [{
+                    id: {{ $reservation->table_id }},
+                    name: '{{ $reservation->table->name }}',
+                    capacity: {{ $reservation->table->capacity }},
+                    location: '{{ $reservation->table->location ?? "" }}'
+                }]
+            };
+            
+            let tablesHtml = '';
+            availabilityData.tables.forEach(table => {
+                tablesHtml += `
+                    <div class="col-md-4 mb-3">
+                        <div class="table-option selected" data-table-id="${table.id}">
+                            <h6>${table.name}</h6>
+                            <p class="mb-1"><i class="bx bx-user me-1"></i> ${table.capacity} personnes</p>
+                            ${table.location ? `<p class="mb-0 text-muted"><i class="bx bx-map me-1"></i> ${table.location}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            tablesContainer.innerHTML = tablesHtml;
+            
+            // Ajouter des écouteurs d'événements pour la sélection de table
+            document.querySelectorAll('.table-option').forEach(tableOption => {
+                tableOption.addEventListener('click', function() {
+                    document.querySelectorAll('.table-option').forEach(t => t.classList.remove('selected'));
+                    this.classList.add('selected');
+                    tableIdInput.value = this.getAttribute('data-table-id');
+                });
+            });
+        }
+        
+        // Par défaut, afficher l'étape 1 en mode édition
+        step1.style.display = 'block';
+        step2.style.display = 'none';
+        step3.style.display = 'none';
     });
 </script>
 @endsection

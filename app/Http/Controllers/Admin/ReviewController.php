@@ -8,6 +8,7 @@ use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class ReviewController extends Controller
 {
@@ -42,15 +43,26 @@ class ReviewController extends Controller
             'comment' => 'required|string|min:3',
         ]);
 
+        // Vérifier si un avis existe déjà pour cet utilisateur et ce restaurant
+        $existingReview = Review::where('user_id', $request->user_id)
+                               ->where('restaurant_id', $request->restaurant_id)
+                               ->first();
+
+        if ($existingReview) {
+            return redirect()->route('admin.reviews.edit', $existingReview->id)
+                ->with('error', 'Cet utilisateur a déjà laissé un avis pour ce restaurant. Vous pouvez modifier l\'avis existant.');
+        }
+
         $review = new Review();
         $review->restaurant_id = $request->restaurant_id;
         $review->user_id = $request->user_id;
         $review->rating = $request->rating;
         $review->comment = $request->comment;
+        $review->is_approved = $request->has('is_approved') ? 1 : 0;
         $review->save();
 
         return redirect()->route('admin.reviews.index')
-            ->with('success', 'Avis cru00e9u00e9 avec succu00e8s');
+            ->with('success', 'Avis créé avec succès');
     }
 
     /**
@@ -87,10 +99,11 @@ class ReviewController extends Controller
         $review->user_id = $request->user_id;
         $review->rating = $request->rating;
         $review->comment = $request->comment;
+        $review->is_approved = $request->has('is_approved');
         $review->save();
 
-        return redirect()->route('admin.reviews.index')
-            ->with('success', 'Avis mis u00e0 jour avec succu00e8s');
+        return redirect()->route('admin.reviews.show', $review->id)
+            ->with('success', 'Avis mis à jour avec succès');
     }
 
     /**
@@ -100,6 +113,6 @@ class ReviewController extends Controller
     {
         $review->delete();
         return redirect()->route('admin.reviews.index')
-            ->with('success', 'Avis supprimu00e9 avec succu00e8s');
+            ->with('success', 'Avis supprimé avec succès');
     }
 }

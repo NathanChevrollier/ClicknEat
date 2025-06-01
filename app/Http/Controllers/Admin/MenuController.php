@@ -85,6 +85,20 @@ class MenuController extends Controller
         // Convertir le prix en centimes pour le stockage
         $price = $request->price * 100;
         
+        // Vérifier si des plats sont déjà associés à d'autres menus
+        $itemsInOtherMenus = Item::whereIn('id', $request->items)
+            ->whereNotNull('menu_id')
+            ->get();
+        
+        if ($itemsInOtherMenus->count() > 0) {
+            // Collecter les noms des plats déjà attribués pour l'affichage
+            $itemNames = $itemsInOtherMenus->pluck('name')->implode(', ');
+            
+            return back()
+                ->withInput()
+                ->withErrors(['items' => "Les plats suivants sont déjà associés à d'autres menus : {$itemNames}. Un plat ne peut être associé qu'à un seul menu."]);
+        }
+        
         // Créer le menu
         $menu = Menu::create([
             'name' => $request->name,
@@ -151,6 +165,21 @@ class MenuController extends Controller
         
         // Convertir le prix en centimes pour le stockage
         $price = $request->price * 100;
+        
+        // Vérifier si des plats sélectionnés sont déjà associés à d'autres menus
+        $itemsInOtherMenus = Item::whereIn('id', $request->items)
+            ->whereNotNull('menu_id')
+            ->where('menu_id', '!=', $menu->id) // Exclure les plats déjà associés à ce menu
+            ->get();
+        
+        if ($itemsInOtherMenus->count() > 0) {
+            // Collecter les noms des plats déjà attribués pour l'affichage
+            $itemNames = $itemsInOtherMenus->pluck('name')->implode(', ');
+            
+            return back()
+                ->withInput()
+                ->withErrors(['items' => "Les plats suivants sont déjà associés à d'autres menus : {$itemNames}. Un plat ne peut être associé qu'à un seul menu."]);
+        }
         
         // Mettre à jour le menu
         $menu->update([

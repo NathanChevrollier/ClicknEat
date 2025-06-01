@@ -1,4 +1,5 @@
 @extends('layouts.main')
+@php use Illuminate\Support\Str; @endphp
 
 @section('main')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -20,19 +21,6 @@
         </div>
 
         <div class="card-body">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible" role="alert">
-                    {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
 
             <!-- Filtres -->
             <div class="mb-4">
@@ -95,7 +83,7 @@
                                         </a>
                                     </td>
                                     <td>
-                                        <a href="{{ route('admin.users', ['user_id' => $review->user_id]) }}">
+                                        <a href="{{ route('admin.users.show', $review->user_id) }}">
                                             {{ $review->user->name }}
                                         </a>
                                     </td>
@@ -113,22 +101,20 @@
                                     <td>{{ Str::limit($review->comment, 50) }}</td>
                                     <td>{{ $review->created_at->format('d/m/Y') }}</td>
                                     <td>
-                                        <div class="dropdown">
-                                            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                                                <i class="bx bx-dots-vertical-rounded"></i>
-                                            </button>
-                                            <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="{{ route('restaurants.show', $review->restaurant_id) }}#review-{{ $review->id }}">
-                                                    <i class="bx bx-show me-1"></i> Voir
-                                                </a>
-                                                <form action="{{ route('reviews.destroy', $review->id) }}" method="POST" class="d-inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="dropdown-item" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')">
-                                                        <i class="bx bx-trash me-1"></i> Supprimer
-                                                    </button>
-                                                </form>
-                                            </div>
+                                        <div class="d-flex gap-2">
+                                            <a class="btn btn-sm btn-info" href="{{ route('admin.reviews.show', $review->id) }}" title="Voir">
+                                                <i class="bx bx-show"></i>
+                                            </a>
+                                            <a class="btn btn-sm btn-primary" href="{{ route('admin.reviews.edit', $review->id) }}" title="Modifier">
+                                                <i class="bx bx-edit"></i>
+                                            </a>
+                                            <form action="{{ route('admin.reviews.destroy', $review->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')" title="Supprimer">
+                                                    <i class="bx bx-trash"></i>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>

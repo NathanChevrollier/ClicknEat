@@ -23,6 +23,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/restaurants/{restaurant}/items', [RestaurantApiController::class, 'getItems']);
 Route::get('/restaurants/{restaurant}/categories', [RestaurantApiController::class, 'getCategories']);
 Route::get('/restaurants/{restaurant}/menus', [RestaurantApiController::class, 'getMenus']);
+Route::get('/restaurants/{restaurant}/items-and-menus', [RestaurantApiController::class, 'getItemsAndMenus']);
+
+// Routes API pour les menus
+Route::get('/menus/{menu}/items', [\App\Http\Controllers\Api\MenuApiController::class, 'getItems']);
 
 // Routes API protégées par authentification
 Route::middleware('auth')->group(function () {

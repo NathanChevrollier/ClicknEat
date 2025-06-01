@@ -1,4 +1,5 @@
 @extends('layouts.main')
+@php use Illuminate\Support\Str; @endphp
 
 @section('main')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -61,6 +62,12 @@
                 <button type="button" class="nav-link" role="tab" data-bs-toggle="tab" data-bs-target="#navs-menus" aria-controls="navs-menus" aria-selected="false">
                     <i class="bx bx-restaurant me-1"></i> Menus
                     <span class="badge rounded-pill badge-center h-px-20 w-px-20 bg-label-primary ms-1">{{ $restaurant->menus->count() }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link" role="tab" data-bs-toggle="tab" data-bs-target="#navs-reviews" aria-controls="navs-reviews" aria-selected="false">
+                    <i class="bx bx-star me-1"></i> Avis
+                    <span class="badge rounded-pill badge-center h-px-20 w-px-20 bg-label-primary ms-1">{{ $reviews->count() }}</span>
                 </button>
             </li>
         </ul>
@@ -224,6 +231,93 @@
                             @empty
                             <tr>
                                 <td colspan="6" class="text-center">Aucun menu trouvé</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Onglet Avis -->
+            <div class="tab-pane fade" id="navs-reviews" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title">Avis du restaurant</h5>
+                    <a href="{{ route('admin.reviews.create') }}" class="btn btn-primary btn-sm">
+                        <i class="bx bx-plus me-1"></i> Ajouter un avis
+                    </a>
+                </div>
+                
+                <!-- Note moyenne -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h6>Note moyenne: {{ number_format($averageRating, 1) }}/5</h6>
+                        <div class="text-warning mb-3">
+                            @for ($i = 1; $i <= 5; $i++)
+                                @if ($i <= round($averageRating))
+                                    <i class="bx bxs-star me-1 fs-3"></i>
+                                @else
+                                    <i class="bx bx-star me-1 fs-3"></i>
+                                @endif
+                            @endfor
+                            <span class="text-muted ms-2">({{ $reviews->count() }} avis)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Liste des avis -->
+                <div class="table-responsive text-nowrap">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Note</th>
+                                <th>Commentaire</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0">
+                            @forelse($reviews as $review)
+                            <tr>
+                                <td>
+                                    <a href="{{ route('admin.users.show', $review->user_id) }}">
+                                        {{ $review->user->name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="text-warning">
+                                        @for ($i = 1; $i <= 5; $i++)
+                                            @if ($i <= $review->rating)
+                                                <i class="bx bxs-star"></i>
+                                            @else
+                                                <i class="bx bx-star"></i>
+                                            @endif
+                                        @endfor
+                                    </div>
+                                </td>
+                                <td>{{ Str::limit($review->comment, 100) }}</td>
+                                <td>{{ $review->created_at->format('d/m/Y') }}</td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <a class="btn btn-sm btn-info" href="{{ route('admin.reviews.show', $review->id) }}" title="Voir">
+                                            <i class="bx bx-show"></i>
+                                        </a>
+                                        <a class="btn btn-sm btn-primary" href="{{ route('admin.reviews.edit', $review->id) }}" title="Modifier">
+                                            <i class="bx bx-edit"></i>
+                                        </a>
+                                        <form action="{{ route('admin.reviews.destroy', $review->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')" title="Supprimer">
+                                                <i class="bx bx-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="text-center">Aucun avis trouvé</td>
                             </tr>
                             @endforelse
                         </tbody>

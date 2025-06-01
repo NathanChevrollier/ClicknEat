@@ -102,6 +102,7 @@
                 <tr>
                     <th>Nom</th>
                     <th>Catégorie</th>
+                    <th>Menu associé</th>
                     <th>Prix unitaire</th>
                     <th>Quantité</th>
                     <th>Sous-total</th>
@@ -112,6 +113,20 @@
                 <tr>
                     <td>{{ $item->name }}</td>
                     <td>{{ $item->category->name }}</td>
+                    <td>
+                        @if($item->pivot->menu_id)
+                            @php
+                                $menu = \App\Models\Menu::find($item->pivot->menu_id);
+                            @endphp
+                            @if($menu)
+                                <span class="badge bg-primary">{{ $menu->name }}</span>
+                            @else
+                                -
+                            @endif
+                        @else
+                            -
+                        @endif
+                    </td>
                     <td>@formatPrice($item->pivot->price)</td>
                     <td>{{ $item->pivot->quantity }}</td>
                     <td>@formatPrice($item->pivot->price * $item->pivot->quantity)</td>

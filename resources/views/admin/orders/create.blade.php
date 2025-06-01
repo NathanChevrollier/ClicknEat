@@ -14,7 +14,9 @@
             </a>
         </div>
         <div class="card-body">
-            <form action="{{ route('admin.orders.store') }}" method="POST">
+            <!-- Version Laravel native : action générée automatiquement -->
+            <form id="orderForm" action="{{ route('admin.orders.store') }}" method="POST">
+                {{-- Le javascript de modification d'URL a été supprimé car nous utilisons maintenant route() --}}
                 @csrf
 
                 <!-- Client -->
@@ -107,8 +109,40 @@
     </div>
 </div>
 
-<!-- Données pour le JavaScript -->
+@section('scripts')
 <script>
+    // Gestion de la soumission du formulaire via AJAX
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Empêcher la soumission classique
+        
+        // Récupérer toutes les données du formulaire
+        const formData = new FormData(this);
+        
+        // Envoyer les données via AJAX
+        // Utiliser directement l'URL complète avec le sous-dossier
+        fetch('/clickneat/admin/orders', {
+            method: 'POST',
+            body: formData,
+            // Pas besoin d'ajouter X-CSRF-TOKEN dans les headers car FormData contient déjà le token @csrf
+            // Le token CSRF est automatiquement inclus via le champ caché _token
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url; // Suivre la redirection
+            } else if (response.ok) {
+                // Redirection manuelle vers la liste des commandes avec le sous-dossier correct
+                window.location.href = '/clickneat/admin/orders';
+            } else {
+                alert('Erreur lors de la création de la commande : ' + response.statusText);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors de la création de la commande');
+        });
+    });
+    
     // Pré-charger les données des restaurants, menus et plats
     const restaurantsData = {
         @foreach(\App\Models\Restaurant::all() as $restaurant)
@@ -136,10 +170,7 @@
             },
         @endforeach
     };
-</script>
-
-@push('scripts')
-<script>
+    
     // Variables globales
     let itemCount = 0;
     let menuCount = 0;
@@ -272,8 +303,73 @@
             });
         }
         
+        // Ajouter un événement pour charger les plats du menu sélectionné
+        menuSelect.addEventListener('change', function() {
+            const menuId = this.value;
+            if (!menuId) return;
+            
+            // Trouver la quantité de ce menu
+            const quantityInput = this.closest('.menu-row').querySelector('input[type="number"]');
+            const menuQuantity = parseInt(quantityInput.value) || 1;
+            
+            console.log(`Récupération des plats pour le menu ${menuId} (quantité: ${menuQuantity})`);
+            
+            // Récupérer les plats du menu via l'API en utilisant l'URL complète
+            fetch(`{{ url('/') }}/api/menus/${menuId}/items?active_only=1`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(menuItems => {
+                    console.log('Plats du menu récupérés:', menuItems);
+                    
+                    // Pour chaque plat du menu, créer un champ caché
+                    menuItems.forEach(item => {
+                        // Vérifier si le plat est déjà présent dans le formulaire
+                        const existingItemInput = document.querySelector(`input[name="items[${item.id}][id]"][data-menu-id="${menuId}"]`);
+                        if (existingItemInput) {
+                            // Mettre à jour la quantité si le plat existe déjà
+                            const quantityInput = existingItemInput.closest('.hidden-item-row').querySelector('.item-quantity');
+                            quantityInput.value = menuQuantity;
+                        } else {
+                            // Créer un nouveau champ caché pour ce plat
+                            const hiddenRow = document.createElement('div');
+                            hiddenRow.className = 'hidden-item-row d-none';
+                            hiddenRow.innerHTML = `
+                                <input type="hidden" name="items[${item.id}][id]" value="${item.id}" data-menu-id="${menuId}">
+                                <input type="hidden" name="items[${item.id}][quantity]" class="item-quantity" value="${menuQuantity}">
+                                <input type="hidden" name="items[${item.id}][is_from_menu]" value="1">
+                            `;
+                            itemsContainer.appendChild(hiddenRow);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la récupération des plats du menu:', error);
+                    alert('Erreur lors de la récupération des plats du menu. Vérifiez la console pour plus d\'informations.');
+                });
+        });
+        
+        // Ajouter un événement pour mettre à jour les quantités des plats lorsque la quantité du menu change
+        const quantityInput = row.querySelector('input[type="number"]');
+        quantityInput.addEventListener('change', function() {
+            const menuId = menuSelect.value;
+            if (!menuId) return;
+            
+            const menuQuantity = parseInt(this.value) || 1;
+            
+            // Mettre à jour tous les plats de ce menu
+            const menuItemInputs = document.querySelectorAll(`input[data-menu-id="${menuId}"]`);
+            menuItemInputs.forEach(input => {
+                const quantityInput = input.closest('.hidden-item-row').querySelector('.item-quantity');
+                quantityInput.value = menuQuantity;
+            });
+        });
+        
         menuCount++;
     }
 </script>
-@endpush
+@endsection
 @endsection
