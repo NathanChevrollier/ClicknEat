@@ -27,19 +27,43 @@ class CategoryController extends Controller
     {
         $this->checkAdmin();
         
-        // Vérifier si un restaurant spécifique est demandé
+        // Initialiser la requête de base
+        $query = Category::with(['restaurant', 'items']);
         $restaurant = null;
-        $categories = null;
         
+        // Filtrer par restaurant si spécifié
         if ($request->has('restaurant_id')) {
             $restaurantId = $request->restaurant_id;
             $restaurant = Restaurant::findOrFail($restaurantId);
-            $categories = Category::where('restaurant_id', $restaurantId)
-                ->with(['restaurant', 'items'])
-                ->get();
-        } else {
-            $categories = Category::with(['restaurant', 'items'])->get();
+            $query->where('restaurant_id', $restaurantId);
         }
+        
+        // Recherche textuelle si spécifiée
+        if ($request->has('search') && !empty($request->search)) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+        
+        // Gestion du tri
+        $sortField = $request->input('sort', 'id');
+        $sortDirection = $request->input('direction', 'asc');
+        
+        // Valider les champs de tri autorisés
+        $allowedSortFields = ['id', 'name'];
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'id';
+        }
+        
+        // Tri spécial pour les champs de relation
+        if ($sortField === 'restaurant') {
+            $query->join('restaurants', 'categories.restaurant_id', '=', 'restaurants.id')
+                  ->select('categories.*')
+                  ->orderBy('restaurants.name', $sortDirection);
+        } else {
+            $query->orderBy($sortField, $sortDirection);
+        }
+        
+        // Pagination (15 éléments par page)
+        $categories = $query->paginate(15);
         
         return view('admin.categories.index', compact('categories', 'restaurant'));
     }

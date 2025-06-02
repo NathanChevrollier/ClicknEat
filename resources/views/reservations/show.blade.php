@@ -26,11 +26,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Réservation #{{ $reservation->id }}</h5>
                     <div>
-                        @if($reservation->canBeModified())
-                            <a href="{{ route('reservations.edit', $reservation->id) }}" class="btn btn-primary btn-sm">
-                                <i class="bx bx-edit-alt me-1"></i> Modifier
-                            </a>
-                        @endif
+                        {{-- Le bouton modifier a été retiré à la demande du client --}}
                         
                         @if($reservation->canBeCancelled())
                             <form action="{{ route('reservations.cancel', $reservation->id) }}" method="POST" class="d-inline">

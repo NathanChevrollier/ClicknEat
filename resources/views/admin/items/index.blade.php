@@ -68,23 +68,102 @@
                 </div>
             @endif
             
+            <!-- Formulaire de recherche -->
+            <div class="mb-4">
+                <form action="{{ route('admin.items.index') }}" method="GET" class="row g-3">
+                    @if(isset($restaurant))
+                        <input type="hidden" name="restaurant_id" value="{{ $restaurant->id }}">
+                    @endif
+                    @if(isset($category))
+                        <input type="hidden" name="category_id" value="{{ $category->id }}">
+                    @endif
+                    
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Recherche</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search" name="search" placeholder="Nom, description, prix..." value="{{ request('search') }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bx bx-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="is_available" class="form-label">Disponibilité</label>
+                        <select class="form-select" id="is_available" name="is_available">
+                            <option value="">Tous les statuts</option>
+                            <option value="1" {{ request('is_available') == '1' ? 'selected' : '' }}>Actifs</option>
+                            <option value="0" {{ request('is_available') == '0' ? 'selected' : '' }}>Inactifs</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bx bx-filter-alt me-1"></i> Filtrer
+                        </button>
+                        <a href="{{ route('admin.items.index', isset($restaurant) ? ['restaurant_id' => $restaurant->id] : (isset($category) ? ['category_id' => $category->id] : [])) }}" class="btn btn-outline-secondary">
+                            <i class="bx bx-reset me-1"></i> Réinitialiser
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
             <div class="table-responsive text-nowrap">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nom</th>
-                            <th>Prix</th>
-                            <th>Catégorie</th>
-                            <th>Restaurant</th>
-                            <th>Statut</th>
+                            <th>
+                                <a href="{{ route('admin.items.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'id', 'direction' => (request('sort') == 'id' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                    ID
+                                    @if(request('sort') == 'id')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.items.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'name', 'direction' => (request('sort') == 'name' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                    Nom
+                                    @if(request('sort') == 'name' || !request('sort'))
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.items.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'price', 'direction' => (request('sort') == 'price' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                    Prix
+                                    @if(request('sort') == 'price')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.items.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'category', 'direction' => (request('sort') == 'category' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                    Catégorie
+                                    @if(request('sort') == 'category')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.items.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'restaurant', 'direction' => (request('sort') == 'restaurant' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                    Restaurant
+                                    @if(request('sort') == 'restaurant')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.items.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'is_available', 'direction' => (request('sort') == 'is_available' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                    Statut
+                                    @if(request('sort') == 'is_available')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody class="table-border-bottom-0">
-                        @php
-                            $items = \App\Models\Item::with('category.restaurant')->get();
-                        @endphp
                         @foreach($items as $item)
                         <tr>
                             <td>{{ $item->id }}</td>
@@ -141,10 +220,20 @@
                     <i class="bx bx-info-circle me-1"></i>
                     @if(isset($restaurant))
                         Aucun plat trouvé pour ce restaurant.
+                    @elseif(isset($category))
+                        Aucun plat trouvé dans cette catégorie.
                     @else
                         Aucun plat trouvé.
                     @endif
+                    
+                    @if(request('search') || request('is_available') !== null)
+                        <p class="mb-0 mt-2">Essayez de modifier vos critères de recherche ou 
+                            <a href="{{ route('admin.items.index', isset($restaurant) ? ['restaurant_id' => $restaurant->id] : (isset($category) ? ['category_id' => $category->id] : [])) }}">afficher tous les plats</a>.
+                        </p>
+                    @endif
                 </div>
+            @else
+                <!-- Pas de pagination -->
             @endif
         </div>
     </div>

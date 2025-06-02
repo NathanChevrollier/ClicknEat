@@ -9,46 +9,73 @@ use Illuminate\Support\Facades\Auth;
 
 class CategoryController extends Controller
 {
-    public function index(Request $request, Restaurant $restaurant) {
+    public function index(Request $request, Restaurant $restaurant = null) {
         $user = Auth::user();
+        $restaurants = collect();
         
-        // Vérifier que le restaurant appartient à l'utilisateur si c'est un restaurateur
+        // Récupérer le paramètre de tri
+        $sort = $request->input('sort', 'name_asc'); // Par défaut, tri par nom croissant
+        
+        // Initialiser la requête de base
+        $query = Category::query();
+        
+        // Gestion des filtres selon le rôle
         if ($user->isRestaurateur()) {
-            $restaurantIds = $user->restaurants()->pluck('id');
-            if ($request->filled('restaurant') && $request->restaurant !== 'all') {
-                $restaurant = $user->restaurants()->where('id', $request->restaurant)->first();
-                if (!$restaurant) {
-                    abort(403, 'Ce restaurant ne vous appartient pas.');
+            // Récupérer tous les restaurants du restaurateur
+            $restaurants = $user->restaurants()->orderBy('name')->get();
+            $restaurantIds = $restaurants->pluck('id')->toArray();
+            
+            // Si un restaurant est fourni directement dans la route
+            if ($restaurant) {
+                if (!in_array($restaurant->id, $restaurantIds)) {
+                    // Rediriger vers la liste des restaurants au lieu d'afficher une erreur 403
+                    return redirect()->route('restaurants.index')
+                        ->with('error', 'Vous n\'avez pas accès à ce restaurant.');
                 }
-                $categories = Category::where('restaurant_id', $restaurant->id)
-                    ->orderBy('name')
-                    ->get();
+                $query->where('restaurant_id', $restaurant->id);
+            }
+            // Si un restaurant est sélectionné via un paramètre de requête
+            else if ($request->filled('restaurant')) {
+                if ($request->restaurant === 'all') {
+                    // Explicitement "Tous les restaurants"
+                    $restaurant = null; // Pas de restaurant spécifique sélectionné
+                    $query->whereIn('restaurant_id', $restaurantIds);
+                } else {
+                    $selectedRestaurant = $restaurants->where('id', $request->restaurant)->first();
+                    if (!$selectedRestaurant) {
+                        // Afficher toutes les catégories du restaurateur au lieu d'une erreur 403
+                        $restaurant = null; // Réinitialiser pour afficher "tous les restaurants"
+                        $query->whereIn('restaurant_id', $restaurantIds);
+                    } else {
+                        $restaurant = $selectedRestaurant; // Assigner pour l'affichage dans la vue
+                        $query->where('restaurant_id', $selectedRestaurant->id);
+                    }
+                }
             } else {
-                $categories = Category::whereIn('restaurant_id', $restaurantIds)
-                    ->orderBy('name')
-                    ->get();
+                // Toutes les catégories de tous ses restaurants (cas par défaut)
+                $restaurant = null; // Explicitement null pour le cas par défaut
+                $query->whereIn('restaurant_id', $restaurantIds);
             }
-        } else {
-            $categories = Category::where('restaurant_id', $restaurant->id)
-                ->orderBy('name')
-                ->get();
+        } else if ($restaurant) {
+            // Pour les autres rôles (admin, client) avec un restaurant spécifié
+            $query->where('restaurant_id', $restaurant->id);
         }
         
-        // Gestion du tri
-        $sort = request('sort');
-        if ($categories->count() > 0 && $sort) {
-            switch ($sort) {
-                case 'name_asc':
-                    $categories = $categories->sortBy('name');
-                    break;
-                case 'name_desc':
-                    $categories = $categories->sortByDesc('name');
-                    break;
-            }
-            $categories = $categories->values();
+        // Application du tri directement au niveau SQL avec préfixe de table pour éviter les ambigüités
+        switch ($sort) {
+            case 'name_desc':
+                $query->orderBy('categories.name', 'desc');
+                break;
+            case 'name_asc':
+            default:
+                $query->orderBy('categories.name', 'asc');
+                break;
         }
         
-        return view('categories.index', compact('categories', 'restaurant'));
+        // Exécution de la requête
+        $categories = $query->get();
+        
+        return view('categories.index', compact('categories', 'restaurant', 'restaurants', 'sort'));
     }
 
     public function create(Restaurant $restaurant) {

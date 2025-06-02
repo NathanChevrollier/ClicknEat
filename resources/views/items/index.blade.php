@@ -4,7 +4,22 @@
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title">Plats</h3>
+            <h3 class="card-title">
+                Plats
+                @if(isset($restaurant))
+                    de {{ $restaurant->name }}
+                @elseif(auth()->user()->isRestaurateur())
+                    de tous vos restaurants
+                @else
+                    de tous les restaurants
+                @endif
+                @if(isset($sort))
+                    - {{ $sort == 'name_asc' ? 'Tri par nom (A-Z)' : 
+                        ($sort == 'name_desc' ? 'Tri par nom (Z-A)' : 
+                        ($sort == 'price_asc' ? 'Tri par prix croissant' : 
+                        ($sort == 'price_desc' ? 'Tri par prix décroissant' : ''))) }}
+                @endif
+            </h3>
             <div class="d-flex">
                 @if(isset($restaurant))
                     <a href="{{ route('restaurants.show', $restaurant->id) }}" class="btn btn-secondary me-2">
@@ -33,23 +48,22 @@
                 </div>
             @endif
 
-            <form method="GET" class="row g-3 mb-3 align-items-end">
-                <div class="col-md-3">
-                    <label for="sort" class="form-label">Trier par</label>
-                    <select class="form-select" id="sort" name="sort">
-                        <option value="name_asc" {{ request('sort') == 'name_asc' ? 'selected' : '' }}>Nom (A-Z)</option>
-                        <option value="name_desc" {{ request('sort') == 'name_desc' ? 'selected' : '' }}>Nom (Z-A)</option>
-                        <option value="price_asc" {{ request('sort') == 'price_asc' ? 'selected' : '' }}>Prix croissant</option>
-                        <option value="price_desc" {{ request('sort') == 'price_desc' ? 'selected' : '' }}>Prix décroissant</option>
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Trier</button>
-                </div>
-                @if(request('restaurant'))
-                    <input type="hidden" name="restaurant" value="{{ request('restaurant') }}">
-                @endif
-            </form>
+            <div class="mb-3">
+                <form method="GET" action="{{ isset($restaurant) ? route('items.index', ['restaurant' => $restaurant->id]) : route('items.index') }}" class="row g-3 align-items-end" id="sort-form">
+                    <div class="col-md-4">
+                        <label for="sort" class="form-label"><strong>Trier par</strong></label>
+                        <select class="form-select" id="sort" name="sort" onchange="document.getElementById('sort-form').submit();">
+                            <option value="name_asc" {{ isset($sort) && $sort == 'name_asc' ? 'selected' : '' }}>Nom (A-Z)</option>
+                            <option value="name_desc" {{ isset($sort) && $sort == 'name_desc' ? 'selected' : '' }}>Nom (Z-A)</option>
+                            <option value="price_asc" {{ isset($sort) && $sort == 'price_asc' ? 'selected' : '' }}>Prix croissant</option>
+                            <option value="price_desc" {{ isset($sort) && $sort == 'price_desc' ? 'selected' : '' }}>Prix décroissant</option>
+                        </select>
+                    </div>
+                    @if(isset($restaurant) && $restaurant)
+                        <input type="hidden" name="restaurant" value="{{ $restaurant->id }}">
+                    @endif
+                </form>
+            </div>
 
             @if($items->count() > 0)
                 <div class="table-responsive">
@@ -92,10 +106,10 @@
                                         </td>
                                     @endif
                                     <td>
-                                        @if($item->is_active)
-                                            <span class="badge bg-success">Actif</span>
+                                        @if($item->is_available)
+                                            <span class="badge bg-success">Disponible</span>
                                         @else
-                                            <span class="badge bg-danger">Inactif</span>
+                                            <span class="badge bg-danger">Indisponible</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
@@ -133,6 +147,10 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+                
+                <div class="mt-3 d-flex justify-content-center">
+                    {{ $items->links() }}
                 </div>
             @else
                 <div class="alert alert-info">

@@ -31,6 +31,16 @@
                         <i class="bx bx-list-plus me-1"></i> Ajouter un menu
                     </a>
                 </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); if(confirm('Êtes-vous sûr de vouloir supprimer ce restaurant ? Cette action est irréversible.')) document.getElementById('delete-restaurant-{{ $restaurant->id }}').submit();">
+                        <i class="bx bx-trash me-1"></i> Supprimer le restaurant
+                    </a>
+                    <form id="delete-restaurant-{{ $restaurant->id }}" action="{{ route('restaurants.destroy', $restaurant->id) }}" method="POST" style="display: none;">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                </li>
             </ul>
         </div>
         
@@ -67,7 +77,7 @@
         </div>
     @elseif(auth()->check() && auth()->user()->isClient())
         <a href="{{ route('restaurants.show', $restaurant->id) }}" class="btn btn-sm btn-info me-2">
-            <i class="bx bx-show me-1"></i> Voir le menu
+            <i class="bx bx-show me-1"></i> Voir le restaurant
         </a>
         <a href="{{ route('orders.create', $restaurant->id) }}" class="btn btn-sm btn-primary {{ !isset($restaurant->is_open) || !$restaurant->is_open ? 'disabled' : '' }} me-2">
             <i class="bx bx-cart-add me-1"></i> Commander
@@ -77,7 +87,7 @@
         </a>
     @else
         <a href="{{ route('restaurants.show', $restaurant->id) }}" class="btn btn-sm btn-info">
-            <i class="bx bx-show me-1"></i> Voir le menu
+            <i class="bx bx-show me-1"></i> Voir le restaurant
         </a>
     @endif
 </div>

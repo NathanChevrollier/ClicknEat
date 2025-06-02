@@ -12,41 +12,62 @@ class ItemController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        $restaurant = null;
+        $restaurants = collect();
+        
+        // Définir le tri par défaut
+        $sort = $request->input('sort', 'name_asc');
+        
+        // Créer la requête de base
+        $query = Item::with(['category.restaurant']);
         
         if ($user->isRestaurateur()) {
             // Les restaurateurs ne voient que les items de leurs restaurants
-            $restaurantIds = $user->restaurants()->pluck('id');
+            $restaurants = $user->restaurants()->orderBy('name')->get();
+            $restaurantIds = $restaurants->pluck('id')->toArray();
             $categoryIds = Category::whereIn('restaurant_id', $restaurantIds)->pluck('id');
-            $items = Item::whereIn('category_id', $categoryIds)->with('category.restaurant')->get();
-        } else {
-            // Les clients voient tous les items
-            $items = Item::with('category.restaurant')->get();
-        }
-        
-        // Gestion du tri
-        $sort = request('sort');
-        if ($items->count() > 0 && $sort) {
-            switch ($sort) {
-                case 'name_asc':
-                    $items = $items->sortBy('name');
-                    break;
-                case 'name_desc':
-                    $items = $items->sortByDesc('name');
-                    break;
-                case 'price_asc':
-                    $items = $items->sortBy('price');
-                    break;
-                case 'price_desc':
-                    $items = $items->sortByDesc('price');
-                    break;
+            $query->whereIn('category_id', $categoryIds);
+            
+            // Filtrage par restaurant
+            if ($request->filled('restaurant')) {
+                if ($request->restaurant === 'all') {
+                    // Explicitement "Tous les restaurants"
+                    $restaurant = null;
+                } else {
+                    $selectedRestaurant = $restaurants->where('id', $request->restaurant)->first();
+                    if ($selectedRestaurant) {
+                        $restaurant = $selectedRestaurant;
+                        $restaurantCategoryIds = Category::where('restaurant_id', $selectedRestaurant->id)->pluck('id');
+                        $query->whereIn('category_id', $restaurantCategoryIds);
+                    }
+                }
             }
-            $items = $items->values();
         }
         
-        return view('items.index', compact('items'));
+        // Application du tri directement au niveau SQL avec préfixe de table
+        switch ($sort) {
+            case 'name_desc':
+                $query->orderBy('items.name', 'desc');
+                break;
+            case 'price_asc':
+                $query->orderBy('items.price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('items.price', 'desc');
+                break;
+            case 'name_asc':
+            default:
+                $query->orderBy('items.name', 'asc');
+                break;
+        }
+        
+        // Paginer les résultats
+        $items = $query->paginate(15)->withQueryString();
+        
+        return view('items.index', compact('items', 'restaurant', 'restaurants', 'sort'));
     }
 
     /**

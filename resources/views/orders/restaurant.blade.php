@@ -29,6 +29,49 @@
                     </select>
                 </div>
             @endif
+            
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <form action="{{ request()->url() }}" method="GET" class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="search">Rechercher</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bx bx-search"></i></span>
+                                        <input type="text" class="form-control" id="search" name="search" placeholder="Nom du client, numéro..." value="{{ request('search') }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label" for="status">Statut</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="">Tous les statuts</option>
+                                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>En attente</option>
+                                        <option value="preparing" {{ request('status') == 'preparing' ? 'selected' : '' }}>En préparation</option>
+                                        <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Terminées</option>
+                                        <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Annulées</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label" for="date">Date</label>
+                                    <input type="date" class="form-control" id="date" name="date" value="{{ request('date') }}">
+                                </div>
+                                
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary rounded-pill me-2">
+                                        <i class="bx bx-filter-alt me-1"></i> Filtrer
+                                    </button>
+                                    <a href="{{ request()->url() }}" class="btn btn-outline-secondary rounded-pill">
+                                        <i class="bx bx-reset me-1"></i> Réinitialiser
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="row mb-4">
                 <div class="col-md-3">
@@ -43,7 +86,7 @@
                     <div class="card bg-success text-white mb-3">
                         <div class="card-body">
                             <h5 class="card-title text-white">Chiffre d'affaires</h5>
-                            <h2 class="text-white">{{ number_format($orders->sum('total_price') / 100, 2, ',', ' ') }} €</h2>
+                            <h2 class="text-white">{{ number_format($orders->sum('total_amount') / 100, 2, ',', ' ') }} €</h2>
                         </div>
                     </div>
                 </div>
@@ -90,41 +133,45 @@
                                     <td>{{ $order->restaurant->name }}</td>
                                     <td>{{ $order->user->name }}</td>
                                     <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
-                                    <td>{{ number_format($order->total_price / 100, 2, ',', ' ') }} €</td>
+                                    <td>{{ number_format($order->total_amount / 100, 2, ',', ' ') }} €</td>
                                     <td>
                                         <span class="badge bg-{{ $order->status == 'completed' ? 'success' : ($order->status == 'cancelled' ? 'danger' : ($order->status == 'preparing' ? 'warning' : 'primary')) }}">
                                             {{ $order->status == 'pending' ? 'En attente' : ($order->status == 'preparing' ? 'En préparation' : ($order->status == 'completed' ? 'Terminée' : 'Annulée')) }}
                                         </span>
                                     </td>
                                     <td>
-                                        <div class="dropdown">
-                                            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                                                <i class="bx bx-dots-vertical-rounded"></i>
-                                            </button>
-                                            <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#orderDetailsModal{{ $order->id }}">
-                                                    <i class="bx bx-show-alt me-1"></i> Voir détails
-                                                </a>
-                                                @if($order->status == 'pending')
-                                                    <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
-                                                        @csrf
-                                                        @method('PUT')
-                                                        <input type="hidden" name="status" value="preparing">
-                                                        <button type="submit" class="dropdown-item">
-                                                            <i class="bx bx-play-circle me-1"></i> Commencer préparation
-                                                        </button>
-                                                    </form>
-                                                @elseif($order->status == 'preparing')
-                                                    <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
-                                                        @csrf
-                                                        @method('PUT')
-                                                        <input type="hidden" name="status" value="completed">
-                                                        <button type="submit" class="dropdown-item">
-                                                            <i class="bx bx-check-circle me-1"></i> Marquer comme terminée
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                            </div>
+                                        <div class="d-flex gap-1">
+                                            <a href="#" class="btn btn-sm btn-info rounded-pill" data-bs-toggle="modal" data-bs-target="#orderDetailsModal{{ $order->id }}">
+                                                <i class="bx bx-show-alt"></i>
+                                            </a>
+                                            @if($order->status == 'pending')
+                                                <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="status" value="preparing">
+                                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill">
+                                                        <i class="bx bx-play-circle"></i>
+                                                    </button>
+                                                </form>
+                                            @elseif($order->status == 'preparing')
+                                                <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="status" value="completed">
+                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill">
+                                                        <i class="bx bx-check-circle"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            @if($order->status != 'cancelled' && $order->status != 'completed')
+                                                <form action="{{ route('orders.cancel', $order->id) }}" method="POST">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button type="submit" class="btn btn-sm btn-danger rounded-pill" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette commande ?')">
+                                                        <i class="bx bx-x-circle"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -153,7 +200,38 @@
                                                                 {{ $order->status == 'pending' ? 'En attente' : ($order->status == 'preparing' ? 'En préparation' : ($order->status == 'completed' ? 'Terminée' : 'Annulée')) }}
                                                             </span>
                                                         </p>
-                                                        <p><strong>Total :</strong> {{ number_format($order->total_price / 100, 2, ',', ' ') }} €</p>
+                                                        <p><strong>Total :</strong> {{ number_format($order->total_amount / 100, 2, ',', ' ') }} €</p>
+                                                        
+                                                        @php
+                                                            // Calculer le temps de préparation total en minutes
+                                                            $totalPrepTime = 0;
+                                                            foreach($order->items as $item) {
+                                                                $totalPrepTime += ($item->preparation_time ?? 10) * $item->pivot->quantity;
+                                                            }
+                                                            // Convertir en heures/minutes si nécessaire
+                                                            $hours = floor($totalPrepTime / 60);
+                                                            $minutes = $totalPrepTime % 60;
+                                                        @endphp
+                                                        
+                                                        <div class="alert alert-warning mt-2 mb-2">
+                                                            <i class="bx bx-time me-1"></i>
+                                                            <strong>Temps de préparation estimé :</strong> 
+                                                            @if($hours > 0)
+                                                                {{ $hours }}h{{ $minutes > 0 ? ' ' . $minutes . 'min' : '' }}
+                                                            @else
+                                                                {{ $minutes }} minutes
+                                                            @endif
+                                                        </div>
+                                                        
+                                                        @if($order->reservation_id)
+                                                        <div class="alert alert-info mt-2 mb-0">
+                                                            <i class="bx bx-calendar me-1"></i>
+                                                            <strong>Réservation associée :</strong> 
+                                                            <a href="{{ route('reservations.show', $order->reservation_id) }}" class="alert-link">
+                                                                Voir la réservation #{{ $order->reservation_id }}
+                                                            </a>
+                                                        </div>
+                                                        @endif
                                                     </div>
                                                 </div>
                                                 <h6>Articles commandés</h6>
@@ -180,33 +258,48 @@
                                                         <tfoot>
                                                             <tr>
                                                                 <td colspan="3" class="text-end"><strong>Total</strong></td>
-                                                                <td><strong>{{ number_format($order->total_price / 100, 2, ',', ' ') }} €</strong></td>
+                                                                <td><strong>{{ number_format($order->total_amount / 100, 2, ',', ' ') }} €</strong></td>
                                                             </tr>
                                                         </tfoot>
                                                     </table>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                                @if($order->status == 'pending')
-                                                    <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
-                                                        @csrf
-                                                        @method('PUT')
-                                                        <input type="hidden" name="status" value="preparing">
-                                                        <button type="submit" class="btn btn-primary">
-                                                            <i class="bx bx-play-circle me-1"></i> Commencer préparation
-                                                        </button>
-                                                    </form>
-                                                @elseif($order->status == 'preparing')
-                                                    <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
-                                                        @csrf
-                                                        @method('PUT')
-                                                        <input type="hidden" name="status" value="completed">
-                                                        <button type="submit" class="btn btn-success">
-                                                            <i class="bx bx-check-circle me-1"></i> Marquer comme terminée
-                                                        </button>
-                                                    </form>
-                                                @endif
+                                                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">
+                                                    <i class="bx bx-x me-1"></i> Fermer
+                                                </button>
+                                                
+                                                <div class="d-flex gap-2">
+                                                    @if($order->status == 'pending')
+                                                        <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <input type="hidden" name="status" value="preparing">
+                                                            <button type="submit" class="btn btn-primary rounded-pill">
+                                                                <i class="bx bx-play-circle me-1"></i> Commencer préparation
+                                                            </button>
+                                                        </form>
+                                                    @elseif($order->status == 'preparing')
+                                                        <form action="{{ route('orders.update-status', $order->id) }}" method="POST">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <input type="hidden" name="status" value="completed">
+                                                            <button type="submit" class="btn btn-success rounded-pill">
+                                                                <i class="bx bx-check-circle me-1"></i> Marquer comme terminée
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                    
+                                                    @if($order->status != 'cancelled' && $order->status != 'completed')
+                                                        <form action="{{ route('orders.cancel', $order->id) }}" method="POST">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <button type="submit" class="btn btn-danger rounded-pill" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette commande ?')">
+                                                                <i class="bx bx-x-circle me-1"></i> Annuler la commande
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

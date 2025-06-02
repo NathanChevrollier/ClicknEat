@@ -6,7 +6,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title">Réservation chez {{ $restaurant->name }}</h3>
             <div>
-                <a href="{{ route('restaurants.show', $restaurant->id) }}" class="btn btn-secondary">Retour au restaurant</a>
+                <a href="{{ route('restaurants.index') }}" class="btn btn-secondary">Retour aux restaurants</a>
             </div>
         </div>
         <div class="card-body">

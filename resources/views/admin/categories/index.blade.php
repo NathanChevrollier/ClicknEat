@@ -68,13 +68,56 @@
                 </div>
             @endif
             
+            <!-- Formulaire de recherche -->
+            <form action="{{ route('admin.categories.index') }}" method="GET" class="mb-4">
+                @if(isset($restaurant))
+                    <input type="hidden" name="restaurant_id" value="{{ $restaurant->id }}">
+                @endif
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="Rechercher par nom..." name="search" value="{{ request('search') }}">
+                            <button class="btn btn-outline-primary" type="submit">
+                                <i class="bx bx-search"></i> Rechercher
+                            </button>
+                            @if(request('search') || request('restaurant_id'))
+                                <a href="{{ route('admin.categories.index') }}" class="btn btn-outline-secondary">
+                                    <i class="bx bx-x"></i> Réinitialiser
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
             <div class="table-responsive text-nowrap">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nom</th>
-                            <th>Restaurant</th>
+                            <th>
+                                <a href="{{ request()->fullUrlWithQuery(['sort' => 'id', 'direction' => (request('sort') === 'id' && request('direction') === 'asc') ? 'desc' : 'asc']) }}" class="text-dark">
+                                    ID
+                                    @if(request('sort') === 'id')
+                                        <i class="bx {{ request('direction') === 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ request()->fullUrlWithQuery(['sort' => 'name', 'direction' => (request('sort') === 'name' && request('direction') === 'asc') ? 'desc' : 'asc']) }}" class="text-dark">
+                                    Nom
+                                    @if(request('sort') === 'name')
+                                        <i class="bx {{ request('direction') === 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ request()->fullUrlWithQuery(['sort' => 'restaurant', 'direction' => (request('sort') === 'restaurant' && request('direction') === 'asc') ? 'desc' : 'asc']) }}" class="text-dark">
+                                    Restaurant
+                                    @if(request('sort') === 'restaurant')
+                                        <i class="bx {{ request('direction') === 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
                             <th>Nombre de plats</th>
                             <th>Actions</th>
                         </tr>
@@ -115,7 +158,23 @@
             
             @if($categories->isEmpty())
                 <div class="alert alert-info mt-3">
-                    <i class="bx bx-info-circle me-1"></i> Aucune catégorie trouvée.
+                    <i class="bx bx-info-circle me-1"></i>
+                    @if(request('search'))
+                        Aucune catégorie ne correspond à votre recherche "<strong>{{ request('search') }}</strong>".
+                        <a href="{{ isset($restaurant) ? route('admin.categories.index', ['restaurant_id' => $restaurant->id]) : route('admin.categories.index') }}" class="alert-link">Réinitialiser la recherche</a>
+                    @elseif(isset($restaurant))
+                        Aucune catégorie trouvée pour le restaurant <strong>{{ $restaurant->name }}</strong>.
+                        <a href="{{ route('admin.categories.create') }}" class="alert-link">Créer une nouvelle catégorie</a>
+                    @else
+                        Aucune catégorie trouvée.
+                    @endif
+                </div>
+            @endif
+            
+            <!-- Pagination - uniquement affichée s'il y a plus d'une page -->
+            @if($categories->hasPages())
+                <div class="d-flex justify-content-center mt-4">
+                    {{ $categories->withQueryString()->links() }}
                 </div>
             @endif
         </div>

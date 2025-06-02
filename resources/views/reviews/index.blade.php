@@ -101,14 +101,14 @@
                                                     @endfor
                                                 </div>
                                                 @if(auth()->check() && (auth()->id() === $review->user_id || auth()->user()->isAdmin()))
-                                                    <div class="btn-group btn-group-sm">
-                                                        <a href="{{ route('restaurants.reviews.edit', [$restaurant->id, $review->id]) }}" class="btn btn-outline-primary">
+                                                    <div class="d-flex">
+                                                        <a href="{{ route('restaurants.reviews.edit', [$restaurant->id, $review->id]) }}" class="btn btn-sm btn-outline-primary rounded-pill me-2">
                                                             <i class="bx bx-edit-alt"></i>
                                                         </a>
-                                                        <form action="{{ route('restaurants.reviews.destroy', [$restaurant->id, $review->id]) }}" method="POST" class="d-inline">
+                                                        <form action="{{ route('restaurants.reviews.destroy', [$restaurant->id, $review->id]) }}" method="POST">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')">
                                                                 <i class="bx bx-trash"></i>
                                                             </button>
                                                         </form>

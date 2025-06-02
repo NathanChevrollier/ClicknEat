@@ -8,7 +8,9 @@ use App\Models\Restaurant;
 use App\Models\User;
 use App\Models\Table;
 use App\Models\Category;
+use App\Models\Order;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -17,11 +19,65 @@ class ReservationController extends Controller
     /**
      * Affiche la liste des réservations
      */
-    public function index()
+    public function index(Request $request)
     {
-        $reservations = Reservation::with(['restaurant', 'user', 'table'])->paginate(10);
+        $query = Reservation::with(['restaurant', 'user', 'table']);
+        
+        // Recherche par client, restaurant ou statut
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->whereHas('user', function($userQuery) use ($search) {
+                      $userQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('restaurant', function($restaurantQuery) use ($search) {
+                      $restaurantQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhere('status', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filtrage par statut si spécifié
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+        
+        // Filtrage par date de réservation
+        if ($request->has('date') && !empty($request->date)) {
+            $date = Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay();
+            $query->whereDate('reservation_date', $date);
+        }
+        
+        // Tri des réservations
+        $sortField = $request->get('sort', 'reservation_date');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        // Vérifier que le champ de tri est valide
+        $validSortFields = ['id', 'reservation_date', 'guests_number', 'status', 'created_at', 'user', 'restaurant'];
+        
+        if (!in_array($sortField, $validSortFields)) {
+            $sortField = 'reservation_date';
+        }
+        
+        // Tri spécial pour les relations
+        if ($sortField === 'user') {
+            $query->join('users', 'reservations.user_id', '=', 'users.id')
+                  ->orderBy('users.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('reservations.*');
+        } elseif ($sortField === 'restaurant') {
+            $query->join('restaurants', 'reservations.restaurant_id', '=', 'restaurants.id')
+                  ->orderBy('restaurants.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('reservations.*');
+        } else {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+        
+        $reservations = $query->paginate(10)->withQueryString();
         $categories = Category::all(); // Ajout de la variable categories requise par le layout
-        return view('admin.reservations.index', compact('reservations', 'categories'));
+        $statuses = ['pending', 'confirmed', 'cancelled', 'completed']; // Liste des statuts possibles
+        
+        return view('admin.reservations.index', compact('reservations', 'categories', 'statuses', 'sortField', 'sortDirection'));
     }
 
     /**

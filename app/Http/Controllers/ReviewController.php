@@ -6,6 +6,7 @@ use App\Models\Review;
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class ReviewController extends Controller
 {
@@ -196,5 +197,18 @@ class ReviewController extends Controller
         $status = $request->is_approved ? 'approuvé' : 'rejeté';
         
         return redirect()->back()->with('success', "L'avis a été {$status} avec succès.");
+    }
+    
+    /**
+     * Afficher les avis de l'utilisateur connecté
+     */
+    public function userReviews()
+    {
+        $reviews = Review::where('user_id', Auth::id())
+                        ->with('restaurant')
+                        ->orderBy('created_at', 'desc')
+                        ->paginate(10);
+        
+        return view('reviews.user-reviews', compact('reviews'));
     }
 }

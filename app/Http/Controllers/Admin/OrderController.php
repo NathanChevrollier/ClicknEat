@@ -11,10 +11,58 @@ class OrderController extends Controller
     /**
      * Affiche la liste des commandes
      */
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Order::all();
-        return view('admin.orders.index', compact('orders'));
+        $query = Order::with(['user', 'restaurant', 'reservation']);
+        
+        // Recherche par utilisateur, restaurant ou statut
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->whereHas('user', function($userQuery) use ($search) {
+                      $userQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('restaurant', function($restaurantQuery) use ($search) {
+                      $restaurantQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhere('status', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filtrage par statut si spécifié
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+        
+        // Tri des commandes
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        // Vérifier que le champ de tri est valide
+        $validSortFields = ['id', 'total_amount', 'status', 'created_at'];
+        
+        if (!in_array($sortField, $validSortFields)) {
+            $sortField = 'created_at';
+        }
+        
+        // Tri spécial pour les relations
+        if ($sortField === 'user') {
+            $query->join('users', 'orders.user_id', '=', 'users.id')
+                  ->orderBy('users.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('orders.*');
+        } elseif ($sortField === 'restaurant') {
+            $query->join('restaurants', 'orders.restaurant_id', '=', 'restaurants.id')
+                  ->orderBy('restaurants.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('orders.*');
+        } else {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+        
+        $orders = $query->paginate(10)->withQueryString();
+        $statuses = ['pending', 'confirmed', 'delivered', 'cancelled']; // Liste des statuts possibles
+        
+        return view('admin.orders.index', compact('orders', 'sortField', 'sortDirection', 'statuses'));
     }
 
     /**

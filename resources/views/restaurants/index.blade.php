@@ -70,8 +70,18 @@
         {{ $restaurants->links() }}
       </div>
       @else
-      <div class="alert alert-info">
-        <i class="bx bx-info-circle me-1"></i> Aucun restaurant trouvé.
+      <div class="col-12 text-center py-5">
+        @if(request()->has('filter') && request()->filter == 'reviewed')
+            <div class="alert alert-info">
+                <i class="bx bx-info-circle me-2"></i>
+                Vous n'avez pas encore laissé d'avis sur des restaurants.
+            </div>
+        @else
+            <div class="alert alert-info">
+                <i class="bx bx-info-circle me-2"></i>
+                Aucun restaurant ne correspond à votre recherche.
+            </div>
+        @endif
       </div>
       @endif
     </div>

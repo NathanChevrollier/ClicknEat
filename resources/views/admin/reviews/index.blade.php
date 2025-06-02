@@ -25,6 +25,16 @@
             <!-- Filtres -->
             <div class="mb-4">
                 <form action="{{ route('admin.reviews.index') }}" method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Recherche</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search" name="search" placeholder="Nom client, restaurant, commentaire..." value="{{ request('search') }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bx bx-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="col-md-3">
                         <label for="restaurant_id" class="form-label">Restaurant</label>
                         <select class="form-select" id="restaurant_id" name="restaurant_id">
@@ -59,18 +69,67 @@
             @if($reviews->isEmpty())
                 <div class="alert alert-info">
                     <i class="bx bx-info-circle me-1"></i>
-                    Aucun avis trouvé.
+                    @if(request('restaurant_id'))
+                        Aucun avis trouvé pour ce restaurant.
+                    @elseif(request('rating'))
+                        Aucun avis trouvé avec cette note.
+                    @elseif(request('search'))
+                        Aucun avis correspondant à votre recherche "{{ request('search') }}".
+                    @else
+                        Aucun avis trouvé.
+                    @endif
+                    
+                    @if(request('search') || request('restaurant_id') || request('rating'))
+                        <p class="mb-0 mt-2">Essayez de modifier vos critères de recherche ou 
+                            <a href="{{ route('admin.reviews.index') }}">afficher tous les avis</a>.
+                        </p>
+                    @endif
                 </div>
             @else
                 <div class="table-responsive text-nowrap">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Restaurant</th>
-                                <th>Client</th>
-                                <th>Note</th>
-                                <th>Commentaire</th>
-                                <th>Date</th>
+                                <th>
+                                    <a href="{{ route('admin.reviews.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'restaurant', 'direction' => (request('sort') == 'restaurant' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                        Restaurant
+                                        @if(request('sort') == 'restaurant')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reviews.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'user', 'direction' => (request('sort') == 'user' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                        Client
+                                        @if(request('sort') == 'user')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reviews.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'rating', 'direction' => (request('sort') == 'rating' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                        Note
+                                        @if(request('sort') == 'rating')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reviews.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'comment', 'direction' => (request('sort') == 'comment' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                        Commentaire
+                                        @if(request('sort') == 'comment')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reviews.index', array_merge(request()->except(['sort', 'direction']), ['sort' => 'created_at', 'direction' => (request('sort') == 'created_at' && request('direction') == 'asc') ? 'desc' : 'asc'])) }}" class="text-body">
+                                        Date
+                                        @if(request('sort') == 'created_at' || !request('sort'))
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -123,9 +182,7 @@
                     </table>
                 </div>
                 
-                <div class="mt-3">
-                    {{ $reviews->links() }}
-                </div>
+                <!-- Pas de pagination -->
             @endif
         </div>
     </div>

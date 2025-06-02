@@ -2,6 +2,7 @@
 
 @php
     use Illuminate\Support\Str;
+    use Illuminate\Support\Facades\DB;
 @endphp
 
 @section('main')
@@ -34,15 +35,21 @@
             
             <!-- Section des menus -->
             @php
-                $menus = \App\Models\Menu::where('restaurant_id', $restaurant->id)->with('items')->get();
-                // Récupérer les menus associés à cette commande
+                // Spécifier items.menu_id pour éviter l'ambiguïté
+                $menus = \App\Models\Menu::where('restaurant_id', $restaurant->id)->with(['items' => function($query) {
+                    $query->select('items.*');
+                }])->get();
+                
+                // Récupérer les menus associés à cette commande 
                 $orderMenus = [];
+                
+                // La relation items() a maintenant un alias 'order_menu_id' pour menu_id de la table order_items
                 foreach($order->items as $orderItem) {
-                    if($orderItem->pivot->menu_id) {
-                        if(!isset($orderMenus[$orderItem->pivot->menu_id])) {
-                            $orderMenus[$orderItem->pivot->menu_id] = 0;
+                    if($orderItem->order_menu_id) {
+                        if(!isset($orderMenus[$orderItem->order_menu_id])) {
+                            $orderMenus[$orderItem->order_menu_id] = 0;
                         }
-                        $orderMenus[$orderItem->pivot->menu_id]++;
+                        $orderMenus[$orderItem->order_menu_id]++;
                     }
                 }
             @endphp
@@ -61,19 +68,29 @@
                                             <h5 class="card-title mb-0">{{ $menu->name }}</h5>
                                         </div>
                                         <div class="card-body">
-                                            <p class="card-text fw-bold text-primary">{{ number_format($menu->price, 2, ',', ' ') }} &euro;</p>
+                                            <p class="card-text fw-bold text-primary">{{ number_format($menu->price / 100, 2, ',', ' ') }} &euro;</p>
                                             <p class="card-text">Contient {{ $menu->items->count() }} plat(s) :</p>
                                             <ul class="ps-3">
                                                 @foreach($menu->items as $item)
                                                     <li>{{ $item->name }}</li>
                                                 @endforeach
                                             </ul>
-                                            <div class="d-flex align-items-center mt-3">
-                                                <label for="menu-{{ $menu->id }}" class="me-2">Quantité:</label>
-                                                <input type="number" min="0" value="{{ isset($orderMenus[$menu->id]) ? $orderMenus[$menu->id] : 0 }}" class="form-control menu-quantity" 
+                                            <div class="d-flex align-items-center">
+                                                <div class="input-group" style="width: 130px;">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm quantity-minus" data-type="menu" data-id="{{ $menu->id }}">
+                                                        <i class="bx bx-minus"></i>
+                                                    </button>
+                                                    <input type="number" min="0" value="{{ isset($orderMenus[$menu->id]) ? $orderMenus[$menu->id] : 0 }}" class="form-control form-control-sm text-center menu-quantity" 
                                                     id="menu-{{ $menu->id }}" 
                                                     name="menus[{{ $menu->id }}][quantity]" 
-                                                    data-price="{{ $menu->price }}">
+                                                    data-price="{{ $menu->price / 100 }}">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm quantity-plus" data-type="menu" data-id="{{ $menu->id }}">
+                                                        <i class="bx bx-plus"></i>
+                                                    </button>
+                                                </div>
+                                                <button type="button" class="btn btn-primary btn-sm ms-2 add-to-cart" data-type="menu" data-id="{{ $menu->id }}" data-name="{{ $menu->name }}" data-price="{{ $menu->price / 100 }}">
+                                                    <i class="bx bx-plus me-1"></i> Ajouter
+                                                </button>
                                                 <input type="hidden" name="menus[{{ $menu->id }}][id]" value="{{ $menu->id }}">
                                             </div>
                                         </div>
@@ -111,13 +128,23 @@
                                                                 <div class="card-body">
                                                                     <h5 class="card-title">{{ $item->name }}</h5>
                                                                     <p class="card-text">{{ Str::limit($item->description, 50) }}</p>
-                                                                    <p class="card-text fw-bold">{{ number_format($item->price, 2, ',', ' ') }} €</p>
+                                                                    <p class="card-text fw-bold">{{ number_format($item->price / 100, 2, ',', ' ') }} €</p>
                                                                     <div class="d-flex align-items-center">
-                                                                        <label for="item-{{ $item->id }}" class="me-2">Quantité:</label>
-                                                                        <input type="number" min="0" value="{{ $orderItems[$item->id] ?? 0 }}" class="form-control item-quantity" 
-                                                                            id="item-{{ $item->id }}" 
-                                                                            name="items[{{ $item->id }}][quantity]" 
-                                                                            data-price="{{ $item->price }}">
+                                                                        <div class="input-group" style="width: 130px;">
+                                                                            <button type="button" class="btn btn-outline-info btn-sm quantity-minus" data-type="item" data-id="{{ $item->id }}">
+                                                                                <i class="bx bx-minus"></i>
+                                                                            </button>
+                                                                            <input type="number" min="0" value="{{ $orderItems[$item->id] ?? 0 }}" class="form-control form-control-sm text-center item-quantity" 
+                                                                                id="item-{{ $item->id }}" 
+                                                                                name="items[{{ $item->id }}][quantity]" 
+                                                                                data-price="{{ $item->price / 100 }}">
+                                                                            <button type="button" class="btn btn-outline-info btn-sm quantity-plus" data-type="item" data-id="{{ $item->id }}">
+                                                                                <i class="bx bx-plus"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                        <button type="button" class="btn btn-info btn-sm ms-2 add-to-cart" data-type="item" data-id="{{ $item->id }}" data-name="{{ $item->name }}" data-price="{{ $item->price / 100 }}">
+                                                                            <i class="bx bx-plus me-1"></i> Ajouter
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -249,61 +276,9 @@
                 }
             });
             
-            // Appliquer les contraintes pour les menus actifs
-            activeMenus.forEach(menuId => {
-                const menuItems = menuItemsMap[menuId] || [];
-                
-                // Désactiver les plats de ce menu
-                menuItems.forEach(itemId => {
-                    const itemInput = document.getElementById(`item-${itemId}`);
-                    if (itemInput) {
-                        itemInput.disabled = true;
-                        itemInput.value = 0;
-                        
-                        // Ajouter un style visuel et un message
-                        const itemCard = itemInput.closest('.card');
-                        if (itemCard) {
-                            itemCard.classList.add('bg-light', 'text-muted');
-                            
-                            // Ajouter un message explicatif s'il n'existe pas déjà
-                            if (!itemCard.querySelector('.disabled-message')) {
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = 'alert alert-info mt-2 disabled-message';
-                                messageDiv.innerHTML = '<small><i class="bx bx-info-circle"></i> Ce plat fait partie d\'un menu que vous avez sélectionné</small>';
-                                itemCard.querySelector('.card-body').appendChild(messageDiv);
-                            }
-                        }
-                    }
-                });
-            });
-            
-            // Appliquer les contraintes pour les plats actifs
-            activeItems.forEach(itemId => {
-                // Si ce plat appartient à un menu, désactiver ce menu
-                if (itemMenuMap[itemId]) {
-                    const menuId = itemMenuMap[itemId];
-                    const menuInput = document.getElementById(`menu-${menuId}`);
-                    
-                    if (menuInput) {
-                        menuInput.disabled = true;
-                        menuInput.value = 0;
-                        
-                        // Ajouter un style visuel et un message
-                        const menuCard = menuInput.closest('.card');
-                        if (menuCard) {
-                            menuCard.classList.add('bg-light', 'text-muted');
-                            
-                            // Ajouter un message explicatif s'il n'existe pas déjà
-                            if (!menuCard.querySelector('.disabled-message')) {
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = 'alert alert-info mt-2 disabled-message';
-                                messageDiv.innerHTML = '<small><i class="bx bx-info-circle"></i> Ce menu contient des plats que vous avez sélectionnés individuellement</small>';
-                                menuCard.querySelector('.card-body').appendChild(messageDiv);
-                            }
-                        }
-                    }
-                }
-            });
+            // Nous n'appliquons plus de contraintes entre menus et plats
+            // Cela permet aux utilisateurs de commander un menu ET des plats individuels qui font partie de ce menu
+            // Si nécessaire, ajouter un message informatif, mais sans désactiver les options
             
             // Ajouter les menus au récapitulatif
             menuQuantityInputs.forEach(input => {
@@ -321,7 +296,12 @@
                             <i class="bx bx-food-menu text-primary me-1"></i>
                             <strong class="text-primary">${quantity} x Menu ${itemName}</strong>
                         </div>
-                        <span class="badge bg-primary rounded-pill">${itemTotal.toFixed(2).replace('.', ',')} €</span>
+                        <div>
+                            <span class="badge bg-primary rounded-pill me-2">${itemTotal.toFixed(2).replace('.', ',')} €</span>
+                            <button type="button" class="btn btn-icon btn-sm btn-outline-danger remove-item" data-type="menu" data-id="${input.id.replace('menu-', '')}">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </div>
                     </div>`;
                 }
             });
@@ -342,7 +322,12 @@
                             <i class="bx bx-dish text-info me-1"></i>
                             <span>${quantity} x ${itemName}</span>
                         </div>
-                        <span class="badge bg-info rounded-pill">${itemTotal.toFixed(2).replace('.', ',')} €</span>
+                        <div>
+                            <span class="badge bg-info rounded-pill me-2">${itemTotal.toFixed(2).replace('.', ',')} €</span>
+                            <button type="button" class="btn btn-icon btn-sm btn-outline-danger remove-item" data-type="item" data-id="${input.id.replace('item-', '')}">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </div>
                     </div>`;
                 }
             });
@@ -368,6 +353,82 @@
             orderSummary.innerHTML = summaryHTML;
         }
         
+        // Gérer les boutons plus et moins pour les quantités
+        document.querySelectorAll('.quantity-plus').forEach(button => {
+            button.addEventListener('click', function() {
+                const type = this.dataset.type;
+                const id = this.dataset.id;
+                const input = document.getElementById(`${type}-${id}`);
+                
+                if (input) {
+                    input.value = Math.min(parseInt(input.value) + 1, 10); // Max 10 items
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        document.querySelectorAll('.quantity-minus').forEach(button => {
+            button.addEventListener('click', function() {
+                const type = this.dataset.type;
+                const id = this.dataset.id;
+                const input = document.getElementById(`${type}-${id}`);
+                
+                if (input) {
+                    input.value = Math.max(parseInt(input.value) - 1, 0); // Min 0 items
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        // Gérer le bouton ajouter au panier
+        document.querySelectorAll('.add-to-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const type = this.dataset.type;
+                const id = this.dataset.id;
+                const name = this.dataset.name;
+                const price = parseFloat(this.dataset.price);
+                const input = document.getElementById(`${type}-${id}`);
+                
+                if (input) {
+                    // Mettre à 1 si c'était 0
+                    if (parseInt(input.value) === 0) {
+                        input.value = 1;
+                    }
+                    
+                    input.dispatchEvent(new Event('change'));
+                    
+                    // Afficher un message de confirmation
+                    const toastHTML = `
+                        <div class="toast-container position-fixed top-0 end-0 p-3">
+                            <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                                <div class="d-flex">
+                                    <div class="toast-body">
+                                        <i class="bx bx-check me-2"></i> ${name} ajouté au panier
+                                    </div>
+                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Ajouter le toast au DOM
+                    const toastContainer = document.createElement('div');
+                    toastContainer.innerHTML = toastHTML;
+                    document.body.appendChild(toastContainer);
+                    
+                    // Afficher le toast
+                    const toastElement = toastContainer.querySelector('.toast');
+                    const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 2000 });
+                    toast.show();
+                    
+                    // Supprimer le toast après qu'il soit masqué
+                    toastElement.addEventListener('hidden.bs.toast', function () {
+                        toastContainer.remove();
+                    });
+                }
+            });
+        });
+        
         // Mettre à jour le récapitulatif lorsque la quantité des plats change
         quantityInputs.forEach(input => {
             input.addEventListener('change', updateOrderSummary);
@@ -380,7 +441,7 @@
             input.addEventListener('input', updateOrderSummary);
         });
         
-        // Initialiser le récapitulatif et les contraintes au chargement de la page
+        // Initialiser le récapitulatif au chargement de la page
         updateOrderSummary();
     });
 </script>

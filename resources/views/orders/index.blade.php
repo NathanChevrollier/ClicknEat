@@ -37,7 +37,7 @@
                                         {{ ucfirst($order->status) }}
                                     </span>
                                 </td>
-                                <td>@formatPrice($order->total_price)</td>
+                                <td>@formatPrice($order->total_amount)</td>
                                 <td>
                                     <a href="{{ route('orders.show', $order->id) }}" class="btn btn-sm btn-info">Voir</a>
                                     

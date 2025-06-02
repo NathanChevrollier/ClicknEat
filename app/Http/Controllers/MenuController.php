@@ -17,53 +17,80 @@ class MenuController extends Controller
     public function index(Request $request, Restaurant $restaurant = null)
     {
         $user = Auth::user();
-        $menus = collect();
         $restaurants = collect();
         
+        // Récupérer les paramètres de filtrage et tri
+        $sort = $request->input('sort', 'name_asc'); // Par défaut, tri par nom croissant
+        
+        // Initialiser la requête de base
+        $query = Menu::with(['restaurant', 'items']);
+        
+        // Gestion des filtres selon le rôle
         if ($user->isRestaurateur()) {
             // Récupérer tous les restaurants du restaurateur
             $restaurants = $user->restaurants()->orderBy('name')->get();
-            // Si un restaurant est sélectionné (filtrage), on affiche ses menus
-            if ($request->filled('restaurant') && $request->restaurant !== 'all') {
-                $restaurant = $restaurants->where('id', $request->restaurant)->first();
-                if (!$restaurant) {
-                    abort(403, 'Ce restaurant ne vous appartient pas.');
+            $restaurantIds = $restaurants->pluck('id')->toArray();
+            
+            // Si un restaurant est fourni directement dans la route
+            if ($restaurant) {
+                if (!in_array($restaurant->id, $restaurantIds)) {
+                    // Rediriger vers la liste des restaurants au lieu d'afficher une erreur 403
+                    return redirect()->route('restaurants.index')
+                        ->with('error', 'Vous n\'avez pas accès à ce restaurant.');
                 }
-                $menus = $restaurant->menus()->with('restaurant')->get();
+                $query->where('restaurant_id', $restaurant->id);
+            }
+            // Si un restaurant est sélectionné via un paramètre de requête
+            else if ($request->filled('restaurant')) {
+                if ($request->restaurant === 'all') {
+                    // Explicitement "Tous les restaurants"
+                    $restaurant = null; // Pas de restaurant spécifique sélectionné
+                    $query->whereIn('restaurant_id', $restaurantIds);
+                } else {
+                    $selectedRestaurant = $restaurants->where('id', $request->restaurant)->first();
+                    if (!$selectedRestaurant) {
+                        // Afficher tous les menus du restaurateur au lieu d'une erreur 403
+                        $restaurant = null; // Réinitialiser pour afficher "tous les restaurants"
+                        $query->whereIn('restaurant_id', $restaurantIds);
+                    } else {
+                        $restaurant = $selectedRestaurant; // Assigner pour l'affichage dans la vue
+                        $query->where('restaurant_id', $selectedRestaurant->id);
+                    }
+                }
             } else {
-                // Tous les menus de tous ses restaurants
-                $menus = Menu::with('restaurant')->whereIn('restaurant_id', $restaurants->pluck('id'))->get();
+                // Tous les menus de tous ses restaurants (cas par défaut)
+                $restaurant = null; // Explicitement null pour le cas par défaut
+                $query->whereIn('restaurant_id', $restaurantIds);
             }
         } else {
-            // Gestion existante pour les autres rôles
+            // Gestion existante pour les autres rôles (admin, client)
             if ($restaurant) {
-                $menus = Menu::where('restaurant_id', $restaurant->id)->with('restaurant')->get();
-            } else {
-                $menus = Menu::with('restaurant')->get();
+                $query->where('restaurant_id', $restaurant->id);
             }
         }
         
-        // Gestion du tri
-        $sort = $request->input('sort');
-        if ($menus->count() > 0 && $sort) {
-            switch ($sort) {
-                case 'name_asc':
-                    $menus = $menus->sortBy('name');
-                    break;
-                case 'name_desc':
-                    $menus = $menus->sortByDesc('name');
-                    break;
-                case 'price_asc':
-                    $menus = $menus->sortBy('price');
-                    break;
-                case 'price_desc':
-                    $menus = $menus->sortByDesc('price');
-                    break;
-            }
-            $menus = $menus->values(); // reset keys
+        // Application du tri directement au niveau SQL
+        // Application explicite des colonnes complètes pour éviter les ambiguïtés
+        switch ($sort) {
+            case 'name_desc':
+                $query->orderBy('menus.name', 'desc');
+                break;
+            case 'price_asc':
+                $query->orderBy('menus.price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('menus.price', 'desc');
+                break;
+            case 'name_asc':
+            default:
+                $query->orderBy('menus.name', 'asc');
+                break;
         }
         
-        return view('menus.index', compact('menus', 'restaurant', 'restaurants'));
+        // Exécution de la requête avec pagination
+        $menus = $query->paginate(15)->appends($request->except('page'));
+        
+        return view('menus.index', compact('menus', 'restaurant', 'restaurants', 'sort'));
     }
 
     /**

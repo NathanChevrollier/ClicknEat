@@ -22,12 +22,37 @@ class UserController extends Controller
     /**
      * Affiche la liste des utilisateurs
      */
-    public function index()
+    public function index(Request $request)
     {
         $this->checkAdmin();
         
-        $users = User::all();
-        return view('admin.users.index', compact('users'));
+        $query = User::query();
+        
+        // Recherche par nom ou email
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+        
+        // Tri des utilisateurs
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        // Vérifier que le champ de tri est valide
+        $validSortFields = ['id', 'name', 'email', 'role', 'created_at'];
+        if (!in_array($sortField, $validSortFields)) {
+            $sortField = 'created_at';
+        }
+        
+        $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        
+        // Pagination
+        $users = $query->paginate(10)->withQueryString();
+        
+        return view('admin.users.index', compact('users', 'sortField', 'sortDirection'));
     }
 
     /**

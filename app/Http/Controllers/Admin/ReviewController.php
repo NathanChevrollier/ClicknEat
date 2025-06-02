@@ -15,10 +15,63 @@ class ReviewController extends Controller
     /**
      * Affiche la liste des avis
      */
-    public function index()
+    public function index(Request $request)
     {
-        $reviews = Review::with(['restaurant', 'user'])->paginate(10);
-        return view('admin.reviews.index', compact('reviews'));
+        $query = Review::with(['restaurant', 'user']);
+        
+        // Recherche par client, restaurant ou contenu
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->whereHas('user', function($userQuery) use ($search) {
+                      $userQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('restaurant', function($restaurantQuery) use ($search) {
+                      $restaurantQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhere('content', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filtrage par note
+        if ($request->has('rating') && $request->rating !== '') {
+            $query->where('rating', $request->rating);
+        }
+        
+        // Filtrage par restaurant
+        if ($request->has('restaurant_id') && !empty($request->restaurant_id)) {
+            $query->where('restaurant_id', $request->restaurant_id);
+        }
+        
+        // Tri des avis
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        // Vérifier que le champ de tri est valide
+        $validSortFields = ['id', 'rating', 'created_at', 'user', 'restaurant'];
+        
+        if (!in_array($sortField, $validSortFields)) {
+            $sortField = 'created_at';
+        }
+        
+        // Tri spécial pour les relations
+        if ($sortField === 'user') {
+            $query->join('users', 'reviews.user_id', '=', 'users.id')
+                  ->orderBy('users.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('reviews.*');
+        } elseif ($sortField === 'restaurant') {
+            $query->join('restaurants', 'reviews.restaurant_id', '=', 'restaurants.id')
+                  ->orderBy('restaurants.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('reviews.*');
+        } else {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+        
+        $reviews = $query->paginate(10)->withQueryString();
+        $restaurants = Restaurant::orderBy('name')->get(); // Pour le filtre de restaurant
+        
+        return view('admin.reviews.index', compact('reviews', 'restaurants', 'sortField', 'sortDirection'));
     }
 
     /**

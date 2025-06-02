@@ -11,10 +11,45 @@ class RestaurantController extends Controller
     /**
      * Affiche la liste des restaurants
      */
-    public function index()
+    public function index(Request $request)
     {
-        $restaurants = Restaurant::paginate(10);
-        return view('admin.restaurants.index', compact('restaurants'));
+        $query = Restaurant::with('user'); // Préchargement de la relation user pour éviter les problèmes N+1
+        
+        // Recherche par nom, adresse ou propriétaire
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%")
+                  ->orWhereHas('user', function($userQuery) use ($search) {
+                      $userQuery->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+        
+        // Tri des restaurants
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        // Vérifier que le champ de tri est valide
+        $validSortFields = ['id', 'name', 'address', 'created_at'];
+        
+        if (!in_array($sortField, $validSortFields)) {
+            $sortField = 'created_at';
+        }
+        
+        // Tri spécial pour le propriétaire (nécessite une jointure)
+        if ($sortField === 'user') {
+            $query->join('users', 'restaurants.user_id', '=', 'users.id')
+                  ->orderBy('users.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('restaurants.*'); // Important pour éviter les conflits de colonnes
+        } else {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+        
+        $restaurants = $query->paginate(10)->withQueryString();
+        
+        return view('admin.restaurants.index', compact('restaurants', 'sortField', 'sortDirection'));
     }
 
     /**

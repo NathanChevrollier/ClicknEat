@@ -167,7 +167,7 @@ class RestaurantController extends Controller
     public function publicShow(Restaurant $restaurant)
     {
         $restaurant->load(['categories', 'categories.items' => function($query) {
-            $query->where('is_active', true);
+            $query->where('is_available', true);
         }]);
         
         // Récupérer les avis approuvés
@@ -183,7 +183,7 @@ class RestaurantController extends Controller
     {
         // Chargement des relations nécessaires
         $restaurant->load(['categories', 'categories.items' => function($query) {
-            $query->where('is_active', true);
+            $query->where('is_available', true);
         }]);
         
         // Nombre total de tables et tables disponibles

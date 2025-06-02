@@ -11,23 +11,70 @@
                 <i class="bx bx-plus me-1"></i> Ajouter un utilisateur
             </a>
         </div>
+        
+        <!-- Formulaire de recherche -->
+        <div class="card-body border-bottom">
+            <form action="{{ route('admin.users.index') }}" method="GET" class="row g-3">
+                <div class="col-md-10">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bx bx-search"></i></span>
+                        <input type="text" class="form-control" name="search" placeholder="Rechercher par nom ou email..." value="{{ request('search') }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Rechercher</button>
+                </div>
+            </form>
+        </div>
         <div class="card-body">
             <div class="table-responsive text-nowrap">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nom</th>
-                            <th>Email</th>
-                            <th>Rôle</th>
-                            <th>Date d'inscription</th>
+                            <th>
+                                <a href="{{ route('admin.users.index', ['sort' => 'id', 'direction' => (request('sort') == 'id' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search')]) }}" class="text-body">
+                                    ID
+                                    @if(request('sort') == 'id')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.users.index', ['sort' => 'name', 'direction' => (request('sort') == 'name' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search')]) }}" class="text-body">
+                                    Nom
+                                    @if(request('sort') == 'name')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.users.index', ['sort' => 'email', 'direction' => (request('sort') == 'email' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search')]) }}" class="text-body">
+                                    Email
+                                    @if(request('sort') == 'email')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.users.index', ['sort' => 'role', 'direction' => (request('sort') == 'role' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search')]) }}" class="text-body">
+                                    Rôle
+                                    @if(request('sort') == 'role')
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ route('admin.users.index', ['sort' => 'created_at', 'direction' => (request('sort') == 'created_at' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search')]) }}" class="text-body">
+                                    Date d'inscription
+                                    @if(request('sort') == 'created_at' || !request('sort'))
+                                        <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                    @endif
+                                </a>
+                            </th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody class="table-border-bottom-0">
-                        @php
-                            $users = \App\Models\User::all();
-                        @endphp
                         @foreach($users as $user)
                         <tr>
                             <td>{{ $user->id }}</td>
@@ -67,8 +114,16 @@
             @if($users->isEmpty())
                 <div class="alert alert-info mt-3">
                     <i class="bx bx-info-circle me-1"></i> Aucun utilisateur trouvé.
+                    @if(request('search'))
+                        <p class="mb-0 mt-2">Essayez de modifier votre recherche ou <a href="{{ route('admin.users.index') }}">afficher tous les utilisateurs</a>.</p>
+                    @endif
                 </div>
             @endif
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-center mt-4">
+                {{ $users->links() }}
+            </div>
         </div>
     </div>
 </div>

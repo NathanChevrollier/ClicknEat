@@ -119,7 +119,7 @@ class OrderController extends Controller
                 'restaurant_id' => $restaurant->id,
                 'status' => Order::STATUS_PENDING,
                 'notes' => $request->notes ?? '',
-                'total_price' => 0, // Sera mis à jour après l'ajout des items
+                'total_amount' => 0, // Sera mis à jour après l'ajout des items
             ]);
             
             $order->save();
@@ -207,9 +207,8 @@ class OrderController extends Controller
                     
                     if ($quantity > 0) {
                         try {
-                            // Vérifier que le menu existe et est actif
+                            // Vérifier que le menu existe
                             $menu = \App\Models\Menu::where('id', $menuId)
-                                ->where('is_active', 1)
                                 ->first();
                                 
                             if (!$menu) {
@@ -229,7 +228,7 @@ class OrderController extends Controller
                             ]);
                             
                             // Récupérer les plats du menu
-                            $menuItems = \App\Models\Item::where('menu_id', $menuId)
+                            $menuItems = \App\Models\Item::where('items.menu_id', $menuId)
                                 ->where('is_available', 1)
                                 ->get();
                                 
@@ -252,7 +251,7 @@ class OrderController extends Controller
                                     $existingOrderItem = \Illuminate\Support\Facades\DB::table('order_items')
                                         ->where('order_id', $order->id)
                                         ->where('item_id', $item->id)
-                                        ->where('menu_id', $menuId)
+                                        ->where('order_items.menu_id', $menuId)
                                         ->first();
                                         
                                     if ($existingOrderItem) {
@@ -319,12 +318,12 @@ class OrderController extends Controller
             }
             
             // Mettre à jour le prix total
-            $order->total_price = $totalPrice;
+            $order->total_amount = $totalPrice;
             $order->save();
             
             Log::info('Commande finalisée avec succès', [
                 'order_id' => $order->id, 
-                'total_price' => $totalPrice,
+                'total_amount' => $totalPrice,
                 'items_count' => $insertCount
             ]);
             
@@ -390,7 +389,12 @@ class OrderController extends Controller
 
         $restaurant = $order->restaurant;
         $categories = $restaurant->categories()->with('items')->get();
-        $orderItems = $order->items->pluck('pivot.quantity', 'id')->toArray();
+        
+        // Modifier pour éviter l'ambiguïté de menu_id en chargeant les items de manière explicite
+        $orderItems = [];
+        foreach ($order->items as $item) {
+            $orderItems[$item->id] = $item->pivot->quantity;
+        }
         
         return view('orders.edit', compact('order', 'restaurant', 'categories', 'orderItems'));
     }
@@ -426,10 +430,11 @@ class OrderController extends Controller
                 'notes' => 'nullable|string',
             ]);
             
-            // Vérifier si au moins un item a une quantité > 0
+            // Vérifier si au moins un item ou menu a une quantité > 0
             $hasItems = false;
             $totalPrice = 0;
             
+            // Vérifier les plats individuels
             if ($request->has('items')) {
                 foreach ($request->items as $itemId => $itemData) {
                     if (isset($itemData['quantity']) && $itemData['quantity'] > 0) {
@@ -439,8 +444,18 @@ class OrderController extends Controller
                 }
             }
             
+            // Vérifier les menus
+            if (!$hasItems && $request->has('menus')) {
+                foreach ($request->menus as $menuId => $menuData) {
+                    if (isset($menuData['quantity']) && $menuData['quantity'] > 0) {
+                        $hasItems = true;
+                        break;
+                    }
+                }
+            }
+            
             if (!$hasItems) {
-                return redirect()->back()->with('error', 'Votre commande doit contenir au moins un article.');
+                return redirect()->back()->with('error', 'Votre commande doit contenir au moins un article ou un menu.');
             }
             
             // Mettre à jour les notes de la commande
@@ -449,7 +464,10 @@ class OrderController extends Controller
             // Structure pour suivre les items à attacher
             $itemsToAttach = [];
             
-            // Ajouter les nouveaux items à la commande
+            // Pour suivre les menus ajoutés et leurs quantités
+            $menus = [];
+            
+            // 1. Ajouter les nouveaux items individuels à la commande
             if ($request->has('items')) {
                 foreach ($request->items as $itemId => $itemData) {
                     $quantity = intval($itemData['quantity'] ?? 0);
@@ -487,7 +505,44 @@ class OrderController extends Controller
                             ];
                         }
                         
-                        $totalPrice += $price * $quantity;
+                        // Ajouter au prix total uniquement pour les plats individuels (sans menu_id)
+                        if ($menuId === null) {
+                            $totalPrice += $price * $quantity;
+                        }
+                    }
+                }
+            }
+            
+            // 2. Traiter les menus
+            if ($request->has('menus')) {
+                foreach ($request->menus as $menuId => $menuData) {
+                    $quantity = intval($menuData['quantity'] ?? 0);
+                    
+                    if ($quantity > 0) {
+                        // Récupérer le menu
+                        $menu = \App\Models\Menu::findOrFail($menuId);
+                        $menus[$menuId] = ['quantity' => $quantity, 'price' => $menu->price];
+                        
+                        // Ajouter le prix du menu au total
+                        $totalPrice += $menu->price * $quantity;
+                        
+                        // Récupérer les plats du menu
+                        $menuItems = Item::where('menu_id', $menuId)->get();
+                        
+                        // Ajouter chaque plat du menu à la commande
+                        foreach ($menuItems as $item) {
+                            // Si le plat est déjà dans itemsToAttach comme plat individuel, on ne l'ajoute pas
+                            if (isset($itemsToAttach[$item->id]) && $itemsToAttach[$item->id]['menu_id'] === null) {
+                                continue;
+                            }
+                            
+                            // Ajouter ou mettre à jour le plat avec son menu_id
+                            $itemsToAttach[$item->id] = [
+                                'quantity' => $quantity,
+                                'price' => $item->price,
+                                'menu_id' => $menuId
+                            ];
+                        }
                     }
                 }
             }
@@ -501,7 +556,7 @@ class OrderController extends Controller
             }
             
             // Mettre à jour le prix total
-            $order->total_price = $totalPrice;
+            $order->total_amount = $totalPrice;
             $order->save();
             
             return redirect()->route('orders.show', $order->id)
@@ -516,113 +571,127 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Update the status of an order.
-     */
-    public function updateStatus(Request $request, Order $order)
-    {
-        $request->validate([
-            'status' => 'required|in:' . implode(',', Order::getStatuses()),
-        ]);
 
-        $user = Auth::user();
+/**
+ * Display a listing of the orders for a restaurant owner.
+ */
+public function restaurantOrders(Request $request)
+{
+    $user = Auth::user();
+    
+    // Vérifier que l'utilisateur est un restaurateur
+    if (!$user->isRestaurateur()) {
+        abort(403, 'Vous n\'avez pas accès à cette page.');
+    }
+    
+    $restaurantIds = $user->restaurants()->pluck('id');
+    
+    // Si l'utilisateur n'a pas de restaurant, rediriger vers la page des restaurants
+    if ($restaurantIds->isEmpty()) {
+        return redirect()->route('restaurants.index')
+            ->with('error', 'Vous devez d\'abord créer un restaurant.');
+    }
+    
+    // Initialiser la requête
+    $query = Order::with(['user', 'restaurant', 'items']);
+    
+    // Filtrer par restaurant si spécifié
+    if ($request->has('restaurant_id')) {
+        $restaurant = Restaurant::findOrFail($request->restaurant_id);
         
-        // Seuls les restaurateurs peuvent mettre à jour le statut
-        if (!$user->isRestaurateur()) {
-            abort(403, 'Vous n\'avez pas le droit de modifier le statut de cette commande.');
-        }
-
         // Vérifier que le restaurant appartient au restaurateur
+        if (!$restaurantIds->contains($restaurant->id)) {
+            abort(403, 'Vous n\'avez pas accès à ce restaurant.');
+        }
+        
+        $query->where('restaurant_id', $restaurant->id);
+    } else {
+        // Sinon, filtrer par tous les restaurants du restaurateur
+        $query->whereIn('restaurant_id', $restaurantIds);
+        $restaurant = null;
+    }
+    
+    // Appliquer les filtres supplémentaires
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->whereHas('user', function($userQuery) use ($search) {
+                $userQuery->where('name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%");
+            })
+            ->orWhere('id', 'like', "%{$search}%");
+        });
+    }
+    
+    // Filtrer par statut
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+    
+    // Filtrer par date
+    if ($request->filled('date')) {
+        $date = $request->date;
+        $query->whereDate('created_at', $date);
+    }
+    
+    // Récupérer les commandes avec tri par date décroissante
+    $orders = $query->orderBy('created_at', 'desc')->get();
+        
+    return view('orders.restaurant', compact('orders', 'restaurant'));
+}
+
+/**
+ * Update the status of an order.
+ */
+public function updateStatus(Request $request, $id)
+{
+    $order = Order::findOrFail($id);
+    
+    // Vérifier que l'utilisateur a le droit de modifier cette commande
+    $user = Auth::user();
+    if ($user->isRestaurateur()) {
         $restaurantIds = $user->restaurants()->pluck('id')->toArray();
         if (!in_array($order->restaurant_id, $restaurantIds)) {
-            abort(403, 'Vous n\'avez pas accès à cette commande.');
+            abort(403, 'Vous n\'avez pas le droit de modifier cette commande.');
         }
-
-        $order->status = $request->status;
-        $order->save();
-
-        return redirect()->route('orders.show', $order->id)
-            ->with('success', 'Statut de la commande mis à jour.');
+    } else if (!$user->isAdmin()) {
+        abort(403, 'Vous n\'avez pas le droit de modifier cette commande.');
     }
+    
+    // Mettre à jour le statut
+    $order->status = $request->status;
+    $order->save();
+    
+    return redirect()->back()->with('success', 'Statut de la commande mis à jour avec succès.');
+}
 
-    /**
-     * Cancel an order.
-     */
-    public function cancel(Order $order)
-    {
-        $user = Auth::user();
-        
-        // Vérifier que l'utilisateur a le droit d'annuler cette commande
-        if ($user->isClient() && $order->user_id !== $user->id) {
-            abort(403, 'Vous n\'avez pas accès à cette commande.');
+/**
+ * Cancel an order.
+ */
+public function cancel($id)
+{
+    $order = Order::findOrFail($id);
+    
+    // Vérifier que l'utilisateur a le droit d'annuler cette commande
+    $user = Auth::user();
+    if ($user->isClient() && $order->user_id != $user->id) {
+        abort(403, 'Vous n\'avez pas le droit d\'annuler cette commande.');
+    } else if ($user->isRestaurateur()) {
+        $restaurantIds = $user->restaurants()->pluck('id')->toArray();
+        if (!in_array($order->restaurant_id, $restaurantIds)) {
+            abort(403, 'Vous n\'avez pas le droit d\'annuler cette commande.');
         }
-
-        if ($user->isRestaurateur()) {
-            $restaurantIds = $user->restaurants()->pluck('id')->toArray();
-            if (!in_array($order->restaurant_id, $restaurantIds)) {
-                abort(403, 'Vous n\'avez pas accès à cette commande.');
-            }
-        }
-
-        // Vérifier que la commande peut être annulée
-        if (in_array($order->status, [Order::STATUS_COMPLETED, Order::STATUS_CANCELLED])) {
-            return redirect()->route('orders.show', $order->id)
-                ->with('error', 'Cette commande ne peut plus être annulée.');
-        }
-
-        $order->status = Order::STATUS_CANCELLED;
-        $order->save();
-
-        return redirect()->route('orders.show', $order->id)
-            ->with('success', 'Commande annulée avec succès.');
     }
-
-    /**
-     * Display a listing of the orders for a restaurant owner.
-     */
-    public function restaurantOrders(Request $request)
-    {
-        $user = Auth::user();
-        
-        // Vérifier que l'utilisateur est un restaurateur
-        if (!$user->isRestaurateur()) {
-            abort(403, 'Vous n\'avez pas accès à cette page.');
-        }
-        
-        $restaurantIds = $user->restaurants()->pluck('id');
-        
-        // Si l'utilisateur n'a pas de restaurant, rediriger vers la page des restaurants
-        if ($restaurantIds->isEmpty()) {
-            return redirect()->route('restaurants.index')
-                ->with('error', 'Vous devez d\'abord créer un restaurant.');
-        }
-        
-        // Filtrer par restaurant si spécifié
-        if ($request->has('restaurant_id')) {
-            $restaurant = Restaurant::findOrFail($request->restaurant_id);
-            
-            // Vérifier que le restaurant appartient au restaurateur
-            if (!$restaurantIds->contains($restaurant->id)) {
-                abort(403, 'Vous n\'avez pas accès à ce restaurant.');
-            }
-            
-            $orders = Order::where('restaurant_id', $restaurant->id)
-                ->with(['user', 'restaurant'])
-                ->orderBy('created_at', 'desc')
-                ->get();
-                
-            return view('orders.restaurant', compact('orders', 'restaurant'));
-        }
-        
-        // Sinon, afficher toutes les commandes de tous les restaurants du restaurateur
-        $orders = Order::whereIn('restaurant_id', $restaurantIds)
-            ->with(['user', 'restaurant'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
-        // Passer null pour $restaurant pour indiquer qu'aucun restaurant spécifique n'est sélectionné
-        $restaurant = null;
-            
-        return view('orders.restaurant', compact('orders', 'restaurant'));
+    
+    // Vérifier que la commande peut être annulée
+    if ($order->status === Order::STATUS_CANCELLED || $order->status === Order::STATUS_COMPLETED) {
+        return redirect()->back()->with('error', 'Cette commande ne peut pas être annulée.');
     }
+    
+    // Annuler la commande
+    $order->status = Order::STATUS_CANCELLED;
+    $order->save();
+    
+    return redirect()->back()->with('success', 'Commande annulée avec succès.');
+}
 }

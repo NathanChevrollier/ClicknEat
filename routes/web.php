@@ -50,13 +50,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
     // Routes communes pour tous les utilisateurs authentifiés
-    Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-    Route::get('/orders/create/{restaurant}', [OrderController::class, 'create'])->name('orders.create');
-    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::get('/mes-avis', [ReviewController::class, 'userReviews'])->name('reviews.user');
+    Route::resource('orders', OrderController::class);
+    Route::get('/orders/reservation/{reservation}', [OrderController::class, 'createFromReservation'])->name('orders.createFromReservation');
+    Route::patch('/orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update.status');
+    Route::put('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::get('/orders/{order}/edit', [OrderController::class, 'edit'])->name('orders.edit');
     Route::put('/orders/{order}', [OrderController::class, 'update'])->name('orders.update');
-    Route::put('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
 
     // Routes pour les clients
     Route::middleware(['client'])->group(function () {
@@ -82,22 +83,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return view('restaurateur.dashboard');
         })->name('restaurateur.dashboard');
 
-        // Commandes des restaurants (uniquement pour les restaurateurs)
-        Route::get('/restaurateur/orders', [OrderController::class, 'restaurantOrders'])->name('restaurateur.orders');
-        Route::put('/orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
-
-        // Gestion des restaurants (uniquement pour les restaurateurs)
-        Route::resource('restaurants', RestaurantController::class)->except(['index', 'show']);
-
+        // Restaurants
+        Route::resource('restaurants', RestaurantController::class);
+        
         // Catégories
         Route::resource('restaurants.categories', CategoryController::class);
-
+        
         // Plats
-        Route::resource('categories.items', ItemController::class);
-        Route::resource('items', ItemController::class);
         Route::resource('restaurants.items', ItemController::class);
-        Route::get('/items/add', [ItemController::class, 'add'])->name('items.add');
-        Route::post('/items/store-direct', [ItemController::class, 'storeDirect'])->name('items.store-direct');
+        
+        // Commandes
+        Route::get('/restaurants/{restaurant}/orders', [OrderController::class, 'restaurantOrders'])->name('restaurants.orders.index');
+        Route::get('/restaurants/{restaurant}/orders/{order}', [OrderController::class, 'restaurantOrder'])->name('restaurants.orders.show');
+        Route::patch('/restaurants/{restaurant}/orders/{order}/update-status', [OrderController::class, 'restaurantUpdateStatus'])->name('restaurants.orders.update.status');
+
+        // Réservations pour restaurateurs
+        Route::get('/restaurants/{restaurant}/reservations', [ReservationController::class, 'restaurantReservations'])->name('restaurant.reservations.index');
+        Route::get('/restaurants/{restaurant}/reservations/{reservation}', [ReservationController::class, 'restaurantReservation'])->name('restaurant.reservations.show');
+        Route::patch('/restaurants/{restaurant}/reservations/{reservation}/update-status', [ReservationController::class, 'restaurantUpdateStatus'])->name('restaurant.reservations.update.status');
 
         // Menus
         Route::resource('restaurants.menus', MenuController::class);
@@ -120,6 +123,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/restaurants/{restaurant}/menus/{menu}/edit', [App\Http\Controllers\MenuController::class, 'edit'])->name('restaurants.menus.edit');
         Route::put('/restaurants/{restaurant}/menus/{menu}', [App\Http\Controllers\MenuController::class, 'update'])->name('restaurants.menus.update');
         Route::delete('/restaurants/{restaurant}/menus/{menu}', [App\Http\Controllers\MenuController::class, 'destroy'])->name('restaurants.menus.destroy');
+        
+        // Routes pour les items (plats) des restaurateurs
+        Route::get('/items', [App\Http\Controllers\ItemController::class, 'index'])->name('items.index');
+        Route::get('/items/create', [App\Http\Controllers\ItemController::class, 'create'])->name('items.create');
+        Route::post('/items', [App\Http\Controllers\ItemController::class, 'store'])->name('items.store');
+        Route::get('/items/{item}', [App\Http\Controllers\ItemController::class, 'show'])->name('items.show');
+        Route::get('/items/{item}/edit', [App\Http\Controllers\ItemController::class, 'edit'])->name('items.edit');
+        Route::put('/items/{item}', [App\Http\Controllers\ItemController::class, 'update'])->name('items.update');
+        Route::delete('/items/{item}', [App\Http\Controllers\ItemController::class, 'destroy'])->name('items.destroy');
+        
+        // Routes pour les commandes des restaurateurs
+        Route::get('/orders/restaurant', [App\Http\Controllers\OrderController::class, 'restaurantOrders'])->name('restaurateur.orders');
+        Route::get('/orders/restaurant/{restaurant}', [App\Http\Controllers\OrderController::class, 'restaurantOrders'])->name('restaurateur.restaurant.orders');
     });
 
     // Routes pour les administrateurs
@@ -172,6 +188,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Route spécifique pour annuler une commande
             Route::patch('/orders/{order}/cancel', [App\Http\Controllers\Admin\OrderController::class, 'cancel'])->name('orders.cancel');
         });
+});
+
+// Routes pour les reviews
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/restaurants/{restaurant}/reviews', [App\Http\Controllers\ReviewController::class, 'index'])->name('restaurants.reviews.index');
+    Route::get('/restaurants/{restaurant}/reviews/create', [App\Http\Controllers\ReviewController::class, 'create'])->name('restaurants.reviews.create');
+    Route::post('/restaurants/{restaurant}/reviews', [App\Http\Controllers\ReviewController::class, 'store'])->name('restaurants.reviews.store');
+    Route::get('/restaurants/{restaurant}/reviews/{review}', [App\Http\Controllers\ReviewController::class, 'show'])->name('restaurants.reviews.show');
+    Route::get('/restaurants/{restaurant}/reviews/{review}/edit', [App\Http\Controllers\ReviewController::class, 'edit'])->name('restaurants.reviews.edit');
+    Route::put('/restaurants/{restaurant}/reviews/{review}', [App\Http\Controllers\ReviewController::class, 'update'])->name('restaurants.reviews.update');
+    Route::delete('/restaurants/{restaurant}/reviews/{review}', [App\Http\Controllers\ReviewController::class, 'destroy'])->name('restaurants.reviews.destroy');
+    Route::post('/reviews/{review}/approve', [App\Http\Controllers\ReviewController::class, 'approve'])->name('reviews.approve');
 });
 
 // Routes pour les réservations

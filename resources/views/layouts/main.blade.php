@@ -156,6 +156,14 @@
                             </a>
                         </li>
                         
+                        <!-- Restaurants (pour restaurateurs) -->
+                        <li class="menu-item {{ request()->routeIs('restaurants.index') ? 'active' : '' }}">
+                            <a href="{{ route('restaurants.index') }}" class="menu-link">
+                                <i class="menu-icon tf-icons bx bx-store"></i>
+                                <div>Restaurants</div>
+                            </a>
+                        </li>
+                        
                         <!-- Catégories (pour restaurateurs) -->
                         <li class="menu-item {{ request()->routeIs('restaurants.categories.*') ? 'active' : '' }}">
                             @if(\Illuminate\Support\Facades\Auth::user()->restaurants->count() > 0)
@@ -254,8 +262,8 @@
                         </li>
                         
                         <!-- Mes avis -->
-                        <li class="menu-item {{ request()->routeIs('reviews.*') ? 'active' : '' }}">
-                            <a href="{{ route('restaurants.index') }}?filter=reviewed" class="menu-link">
+                        <li class="menu-item {{ request()->routeIs('reviews.*') || request()->routeIs('reviews.user') ? 'active' : '' }}">
+                            <a href="{{ route('reviews.user') }}" class="menu-link">
                                 <i class="menu-icon tf-icons bx bx-star"></i>
                                 <div>Mes avis</div>
                             </a>

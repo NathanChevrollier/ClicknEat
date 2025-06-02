@@ -10,6 +10,7 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ReservationController extends Controller
 {
@@ -147,13 +148,34 @@ class ReservationController extends Controller
             $query->whereDate('reservation_date', $date);
         }
         
-        // Trier par date (plus récentes d'abord)
-        $query->orderBy('reservation_date', 'desc');
+        // Gestion du tri
+        if ($request->filled('sort')) {
+            switch ($request->sort) {
+                case 'date_asc':
+                    $query->orderBy('reservation_date', 'asc');
+                    break;
+                case 'date_desc':
+                    $query->orderBy('reservation_date', 'desc');
+                    break;
+                case 'guests_asc':
+                    $query->orderBy('guests_number', 'asc');
+                    break;
+                case 'guests_desc':
+                    $query->orderBy('guests_number', 'desc');
+                    break;
+                default:
+                    $query->orderBy('reservation_date', 'desc');
+            }
+        } else {
+            // Par défaut, trier par date (plus récentes d'abord)
+            $query->orderBy('reservation_date', 'desc');
+        }
         
         // Paginer les résultats
-        $reservations = $query->paginate(10);
+        $reservations = $query->paginate(10)->withQueryString();
         
-        return view('reservations.restaurant', compact('reservations', 'restaurant'));
+        // Utiliser la nouvelle vue pour le restaurateur
+        return view('restaurateur.reservations.index', compact('reservations', 'restaurant'));
     }
 
     /**
@@ -170,7 +192,7 @@ class ReservationController extends Controller
         }
         
         // Récupérer directement les vraies tables de la BDD
-        $tables = \DB::table('tables')
+        $tables = DB::table('tables')
             ->where('restaurant_id', $restaurantId)
             ->where('is_available', true)
             ->get();
@@ -190,7 +212,7 @@ class ReservationController extends Controller
     public function store(Request $request)
     {
         // Ajout de journalisation pour débogage
-        Log::info('Données de réservation reçues', [
+        \Illuminate\Support\Facades\Log::info('Données de réservation reçues', [
             'request_data' => $request->all(),
             'user_id' => auth()->id()
         ]);
@@ -201,14 +223,14 @@ class ReservationController extends Controller
             'guests_number' => 'required|integer|min:1|max:20',
             'table_id' => 'required|exists:tables,id',
             'special_requests' => 'nullable|string|max:500',
-            'add_order' => 'nullable|boolean'
+            'create_order' => 'nullable|boolean'
         ]);
         
         $restaurant = Restaurant::findOrFail($request->restaurant_id);
         
         // Vérifier que le restaurant est ouvert et accepte les réservations
         if (!$restaurant->is_open) {
-            Log::warning('Tentative de réservation dans un restaurant fermé', [
+            \Illuminate\Support\Facades\Log::warning('Tentative de réservation dans un restaurant fermé', [
                 'restaurant_id' => $restaurant->id,
                 'user_id' => auth()->id()
             ]);
@@ -217,7 +239,7 @@ class ReservationController extends Controller
         }
         
         if (!$restaurant->accepts_reservations) {
-            Log::warning('Tentative de réservation dans un restaurant qui n\'accepte pas les réservations', [
+            \Illuminate\Support\Facades\Log::warning('Tentative de réservation dans un restaurant qui n\'accepte pas les réservations', [
                 'restaurant_id' => $restaurant->id,
                 'user_id' => auth()->id()
             ]);
@@ -225,14 +247,14 @@ class ReservationController extends Controller
                 ->with('error', 'Ce restaurant n\'accepte pas les réservations.');
         }
         
-        // Vérifier que la table appartient au restaurant et est active
+        // Vérifier que la table appartient au restaurant et est disponible
         $table = Table::where('id', $request->table_id)
                       ->where('restaurant_id', $restaurant->id)
-                      ->where('is_active', 1)
+                      ->where('is_available', true)
                       ->first();
         
         if (!$table) {
-            Log::warning('Tentative de réservation avec une table invalide ou inactive', [
+            \Illuminate\Support\Facades\Log::warning('Tentative de réservation avec une table invalide ou inactive', [
                 'table_id' => $request->table_id,
                 'restaurant_id' => $restaurant->id,
                 'user_id' => auth()->id()
@@ -245,30 +267,46 @@ class ReservationController extends Controller
         $reservationDate = new \DateTime($request->reservation_date);
         
         // Vérifier que la date de réservation est dans les heures d'ouverture du restaurant
+        // Si les heures d'ouverture sont nulles, toutes les heures sont permises
         $dayOfWeek = strtolower($reservationDate->format('l'));
         $hourOfDay = (int)$reservationDate->format('G');
         
         $openingHoursColumn = 'opening_hours_' . $dayOfWeek;
         $closingHoursColumn = 'closing_hours_' . $dayOfWeek;
         
-        if ($restaurant->$openingHoursColumn === null || 
-            $hourOfDay < (int)$restaurant->$openingHoursColumn || 
-            $hourOfDay >= (int)$restaurant->$closingHoursColumn) {
-            
-            Log::warning('Tentative de réservation en dehors des heures d\'ouverture', [
-                'restaurant_id' => $restaurant->id,
-                'day' => $dayOfWeek,
-                'hour' => $hourOfDay,
-                'opening_hour' => $restaurant->$openingHoursColumn,
-                'closing_hour' => $restaurant->$closingHoursColumn
-            ]);
-            
-            return redirect()->route('reservations.create', $restaurant->id)
-                ->with('error', 'L\'horaire de réservation est en dehors des heures d\'ouverture du restaurant.');
+        // Journaliser l'information pour débogage
+        Log::info('Vérification des horaires de réservation', [
+            'restaurant_id' => $restaurant->id,
+            'day' => $dayOfWeek,
+            'hour' => $hourOfDay,
+            'opening_hour' => $restaurant->$openingHoursColumn,
+            'closing_hour' => $restaurant->$closingHoursColumn
+        ]);
+        
+        // Vérifier les horaires seulement si les valeurs ne sont pas nulles
+        // Si opening_hours ou closing_hours est null, on permet toutes les heures
+        if ($restaurant->$openingHoursColumn !== null && $restaurant->$closingHoursColumn !== null) {
+            if ($hourOfDay < (int)$restaurant->$openingHoursColumn || 
+                $hourOfDay >= (int)$restaurant->$closingHoursColumn) {
+                
+                \Illuminate\Support\Facades\Log::warning('Tentative de réservation en dehors des heures d\'ouverture', [
+                    'restaurant_id' => $restaurant->id,
+                    'day' => $dayOfWeek,
+                    'hour' => $hourOfDay,
+                    'opening_hour' => $restaurant->$openingHoursColumn,
+                    'closing_hour' => $restaurant->$closingHoursColumn
+                ]);
+                
+                return redirect()->route('reservations.create', $restaurant->id)
+                    ->with('error', 'L\'horaire de réservation est en dehors des heures d\'ouverture du restaurant.');
+            }
+        } else {
+            // Les horaires ne sont pas définis, toutes les heures sont autorisées
+            \Illuminate\Support\Facades\Log::info('Horaires d\'ouverture non définis, réservation autorisée pour toute heure');
         }
         
         if (!$this->isTableAvailable($table->id, $reservationDate)) {
-            Log::info('Table non disponible pour la réservation', [
+            \Illuminate\Support\Facades\Log::info('Table non disponible pour la réservation', [
                 'table_id' => $table->id,
                 'reservation_date' => $reservationDate->format('Y-m-d H:i:s')
             ]);
@@ -279,7 +317,7 @@ class ReservationController extends Controller
         
         // Vérifier que la capacité de la table est suffisante
         if ($table->capacity < $request->guests_number) {
-            Log::info('Capacité de table insuffisante', [
+            \Illuminate\Support\Facades\Log::info('Capacité de table insuffisante', [
                 'table_id' => $table->id,
                 'table_capacity' => $table->capacity,
                 'guests_number' => $request->guests_number
@@ -300,7 +338,7 @@ class ReservationController extends Controller
             ->first();
             
         if ($existingReservation) {
-            Log::warning('Tentative de réservation multiple pour un même créneau', [
+            \Illuminate\Support\Facades\Log::warning('Tentative de réservation multiple pour un même créneau', [
                 'user_id' => $userId,
                 'existing_reservation_id' => $existingReservation->id,
                 'existing_reservation_date' => $existingReservation->reservation_date,
@@ -330,13 +368,14 @@ class ReservationController extends Controller
             DB::commit();
             
             // Si l'utilisateur souhaite également passer une commande
-            if ($request->has('add_order') && $request->add_order == 1) {
+            if ($request->has('create_order') && $request->create_order == 1) {
                 // Créer une commande vide associée à la réservation
                 $order = new Order([
                     'user_id' => Auth::id(),
                     'restaurant_id' => $restaurant->id,
+                    'reservation_id' => $reservation->id, // Lien direct vers la réservation
                     'status' => Order::STATUS_PENDING,
-                    'total_price' => 0,
+                    'total_amount' => 0,
                     'notes' => 'Commande associée à la réservation #' . $reservation->id,
                 ]);
                 
@@ -409,7 +448,7 @@ class ReservationController extends Controller
         $restaurant = $reservation->restaurant;
         
         // Récupérer directement les vraies tables de la BDD
-        $tables = \DB::table('tables')
+        $tables = DB::table('tables')
             ->where('restaurant_id', $restaurant->id)
             ->where('is_available', true)
             ->orWhere('id', $reservation->table_id) // Inclure la table actuelle même si elle n'est pas disponible
@@ -595,11 +634,20 @@ class ReservationController extends Controller
                 ->with('error', 'Cette réservation ne peut pas être annulée.');
         }
         
+        // Annuler également la commande associée si elle existe
+        if ($reservation->order_id) {
+            $order = Order::findOrFail($reservation->order_id);
+            if ($order->status !== Order::STATUS_COMPLETED && $order->status !== Order::STATUS_CANCELLED) {
+                $order->status = Order::STATUS_CANCELLED;
+                $order->save();
+            }
+        }
+        
         $reservation->status = Reservation::STATUS_CANCELLED;
         $reservation->save();
         
         return redirect()->route('reservations.show', $reservation->id)
-            ->with('success', 'Réservation annulée avec succès.');
+            ->with('success', 'Réservation annulée avec succès. ' . ($reservation->order_id ? 'La commande associée a également été annulée.' : ''));
     }
 
     /**
@@ -687,8 +735,9 @@ class ReservationController extends Controller
         $order = new Order([
             'user_id' => $reservation->user_id,
             'restaurant_id' => $reservation->restaurant_id,
+            'reservation_id' => $reservation->id, // Lien direct vers la réservation
             'status' => Order::STATUS_PENDING,
-            'total_price' => 0,
+            'total_amount' => 0,
             'notes' => 'Commande associée à la réservation #' . $reservation->id,
         ]);
         
@@ -742,4 +791,66 @@ class ReservationController extends Controller
         
         return $diff->days > 0 || $reservationDate > $now;
     }
+    
+    /**
+     * Afficher une réservation spécifique pour un restaurant (pour restaurateurs).
+     */
+    public function restaurantReservation(Request $request, $restaurantId, $reservationId)
+    {
+        $user = Auth::user();
+        
+        // Vérifier que l'utilisateur est bien propriétaire du restaurant
+        $restaurant = $user->restaurants()->where('id', $restaurantId)->first();
+        if (!$restaurant) {
+            abort(403, 'Ce restaurant ne vous appartient pas.');
+        }
+        
+        // Récupérer la réservation
+        $reservation = Reservation::where('id', $reservationId)
+            ->where('restaurant_id', $restaurantId)
+            ->with(['restaurant', 'table', 'user', 'order'])
+            ->firstOrFail();
+        
+        return view('restaurateur.reservations.show', compact('reservation', 'restaurant'));
+    }
+    
+    /**
+     * Mettre à jour le statut d'une réservation (pour restaurateurs).
+     */
+    public function restaurantUpdateStatus(Request $request, $restaurantId, $reservationId)
+    {
+        $user = Auth::user();
+        
+        // Vérifier que l'utilisateur est bien propriétaire du restaurant
+        $restaurant = $user->restaurants()->where('id', $restaurantId)->first();
+        if (!$restaurant) {
+            abort(403, 'Ce restaurant ne vous appartient pas.');
+        }
+        
+        // Valider la requête
+        $request->validate([
+            'status' => 'required|in:pending,confirmed,cancelled,completed',
+        ]);
+        
+        // Récupérer la réservation
+        $reservation = Reservation::where('id', $reservationId)
+            ->where('restaurant_id', $restaurantId)
+            ->firstOrFail();
+        
+        // Mettre à jour le statut
+        $reservation->status = $request->status;
+        $reservation->save();
+        
+        // Journal de l'opération
+        Log::info("Statut de réservation mis à jour", [
+            'user_id' => $user->id,
+            'reservation_id' => $reservation->id,
+            'old_status' => $reservation->getOriginal('status'),
+            'new_status' => $request->status
+        ]);
+        
+        return redirect()->route('restaurant.reservations.show', [$restaurantId, $reservationId])
+            ->with('success', 'Statut de la réservation mis à jour avec succès.');
+    }
 }
+

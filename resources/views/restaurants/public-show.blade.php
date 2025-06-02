@@ -41,13 +41,13 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ url('/login') }}" class="btn btn-primary">
+                        <a href="{{ url('/login') }}" class="btn btn-primary rounded-pill">
                             <i class="bx bx-cart me-1"></i> Commander
                         </a>
-                        <a href="{{ url('/login') }}" class="btn btn-outline-primary">
+                        <a href="{{ url('/login') }}" class="btn btn-outline-primary rounded-pill">
                             <i class="bx bx-calendar me-1"></i> Réserver une table
                         </a>
-                        <a href="{{ url('/login') }}" class="btn btn-outline-secondary">
+                        <a href="{{ url('/login') }}" class="btn btn-outline-secondary rounded-pill">
                             <i class="bx bx-star me-1"></i> Laisser un avis
                         </a>
                     </div>
@@ -72,7 +72,7 @@
                                                 <h5 class="card-title">{{ $item->name }}</h5>
                                                 <p class="card-text">{{ $item->description ?: 'Délicieux plat à découvrir.' }}</p>
                                                 <p class="fw-semibold">{{ number_format($item->price / 100, 2) }} €</p>
-                                                <a href="{{ url('/login') }}" class="btn btn-sm btn-primary">
+                                                <a href="{{ url('/login') }}" class="btn btn-sm btn-primary rounded-pill">
                                                     <i class="bx bx-cart me-1"></i> Commander
                                                 </a>
                                             </div>
@@ -93,7 +93,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Avis des clients</h5>
-                    <a href="{{ url('/login') }}" class="btn btn-sm btn-primary">
+                    <a href="{{ url('/login') }}" class="btn btn-sm btn-primary rounded-pill">
                         <i class="bx bx-star me-1"></i> Laisser un avis
                     </a>
                 </div>

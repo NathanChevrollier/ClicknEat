@@ -62,6 +62,7 @@
                                 <th>Date & Heure</th>
                                 <th>Personnes</th>
                                 <th>Table</th>
+                                <th>Commande</th>
                                 <th>Statut</th>
                                 <th>Actions</th>
                             </tr>
@@ -73,6 +74,24 @@
                                     <td>{{ $reservation->reservation_date->format('d/m/Y à H:i') }}</td>
                                     <td>{{ $reservation->guests_number }} personnes</td>
                                     <td>{{ $reservation->table->name }}</td>
+                                    <td>
+                                        @if($reservation->order_id)
+                                            <a href="{{ route('orders.show', $reservation->order_id) }}" class="btn btn-sm btn-outline-warning rounded-pill">
+                                                <i class="bx bx-food-menu me-1"></i>Commande #{{ $reservation->order_id }}
+                                            </a>
+                                        @else
+                                            @if($reservation->status !== 'cancelled' && $reservation->status !== 'completed')
+                                                <form action="{{ route('reservations.add-order', $reservation->id) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">
+                                                        <i class="bx bx-plus-circle me-1"></i>Ajouter une commande
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="text-muted">Aucune commande</span>
+                                            @endif
+                                        @endif
+                                    </td>
                                     <td>
                                         @switch($reservation->status)
                                             @case('pending')
@@ -92,48 +111,39 @@
                                         @endswitch
                                     </td>
                                     <td>
-                                        <div class="dropdown">
-                                            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                                                <i class="bx bx-dots-vertical-rounded"></i>
-                                            </button>
-                                            <div class="dropdown-menu">
-                                                <a class="dropdown-item" href="{{ route('reservations.show', $reservation->id) }}">
-                                                    <i class="bx bx-show me-1"></i> Détails
-                                                </a>
-                                                
-                                                @if($reservation->canBeModified())
-                                                    <a class="dropdown-item" href="{{ route('reservations.edit', $reservation->id) }}">
-                                                        <i class="bx bx-edit-alt me-1"></i> Modifier
-                                                    </a>
-                                                @endif
-                                                
-                                                @if($reservation->canBeCancelled())
-                                                    <form action="{{ route('reservations.cancel', $reservation->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        <button type="submit" class="dropdown-item" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')">
-                                                            <i class="bx bx-x-circle me-1"></i> Annuler
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                                
-                                                @if(auth()->user()->isRestaurateur() && $reservation->status === 'pending')
-                                                    <form action="{{ route('reservations.confirm', $reservation->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        <button type="submit" class="dropdown-item">
-                                                            <i class="bx bx-check-circle me-1"></i> Confirmer
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                                
-                                                @if(auth()->user()->isRestaurateur() && $reservation->status === 'confirmed')
-                                                    <form action="{{ route('reservations.complete', $reservation->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        <button type="submit" class="dropdown-item">
-                                                            <i class="bx bx-check-double me-1"></i> Terminer
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                            </div>
+                                        <div class="d-flex gap-1 justify-content-center">
+                                            <a href="{{ route('reservations.show', $reservation->id) }}" class="btn btn-sm btn-info rounded-pill" title="Détails">
+                                                <i class="bx bx-show me-1"></i> Détails
+                                            </a>
+                                            
+                                            {{-- Le bouton modifier a été retiré à la demande du client --}}
+                                            
+                                            @if($reservation->canBeCancelled())
+                                                <form action="{{ route('reservations.cancel', $reservation->id) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" title="Annuler" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation ? ' + (@if($reservation->order_id) 'La commande associée sera également annulée.' @else '' @endif))">
+                                                        <i class="bx bx-x-circle me-1"></i> Annuler
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            @if(auth()->user()->isRestaurateur() && $reservation->status === 'pending')
+                                                <form action="{{ route('reservations.confirm', $reservation->id) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-outline-success rounded-pill" title="Confirmer">
+                                                        <i class="bx bx-check-circle me-1"></i> Confirmer
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            @if(auth()->user()->isRestaurateur() && $reservation->status === 'confirmed')
+                                                <form action="{{ route('reservations.complete', $reservation->id) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-outline-success rounded-pill" title="Terminer">
+                                                        <i class="bx bx-check-double me-1"></i> Terminer
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>

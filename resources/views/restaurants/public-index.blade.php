@@ -40,7 +40,7 @@
                                 @endforeach
                             </div>
                         </div>
-                        <a href="{{ url('/restaurants/'.$restaurant->id) }}" class="btn btn-primary mt-auto">Voir le menu</a>
+                        <a href="{{ url('/restaurants/'.$restaurant->id) }}" class="btn btn-primary mt-auto">Voir le restaurant</a>
                     </div>
                 </div>
             </div>

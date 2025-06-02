@@ -28,27 +28,70 @@ class ItemController extends Controller
     {
         $this->checkAdmin();
         
+        // Initialiser la requête de base
+        $query = Item::with('category.restaurant');
+        
         // Vérifier si un restaurant ou une catégorie spécifique est demandé
         $restaurant = null;
         $category = null;
-        $items = null;
         
-        if ($request->has('restaurant_id')) {
+        if ($request->has('restaurant_id') && !empty($request->restaurant_id)) {
             $restaurantId = $request->restaurant_id;
             $restaurant = Restaurant::findOrFail($restaurantId);
-            $items = Item::whereHas('category', function($query) use ($restaurantId) {
-                $query->where('restaurant_id', $restaurantId);
-            })->with('category.restaurant')->get();
-        } elseif ($request->has('category_id')) {
+            $query = $query->whereHas('category', function($q) use ($restaurantId) {
+                $q->where('restaurant_id', $restaurantId);
+            });
+        } elseif ($request->has('category_id') && !empty($request->category_id)) {
             $categoryId = $request->category_id;
             $category = Category::findOrFail($categoryId);
             $restaurant = $category->restaurant;
-            $items = Item::where('category_id', $categoryId)->with('category.restaurant')->get();
-        } else {
-            $items = Item::with('category.restaurant')->get();
+            $query = $query->where('category_id', $categoryId);
         }
         
-        return view('admin.items.index', compact('items', 'restaurant', 'category'));
+        // Recherche par nom, description, prix
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('price', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filtrage par disponibilité
+        if ($request->has('is_available') && $request->is_available !== '') {
+            $query->where('is_available', $request->is_available == '1');
+        }
+        
+        // Tri des plats
+        $sortField = $request->get('sort', 'name');
+        $sortDirection = $request->get('direction', 'asc');
+        
+        // Vérifier que le champ de tri est valide
+        $validSortFields = ['id', 'name', 'price', 'is_available', 'created_at', 'category', 'restaurant'];
+        
+        if (!in_array($sortField, $validSortFields)) {
+            $sortField = 'name';
+        }
+        
+        // Tri spécial pour les relations
+        if ($sortField === 'category') {
+            $query->join('categories', 'items.category_id', '=', 'categories.id')
+                  ->orderBy('categories.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('items.*');
+        } elseif ($sortField === 'restaurant') {
+            $query->join('categories', 'items.category_id', '=', 'categories.id')
+                  ->join('restaurants', 'categories.restaurant_id', '=', 'restaurants.id')
+                  ->orderBy('restaurants.name', $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->select('items.*');
+        } else {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        }
+        
+        // Pagination
+        $items = $query->paginate(10)->withQueryString();
+        
+        return view('admin.items.index', compact('items', 'restaurant', 'category', 'sortField', 'sortDirection'));
     }
 
     /**

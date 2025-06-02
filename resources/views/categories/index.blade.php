@@ -4,12 +4,16 @@
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title">Catégories</h3>
+            <h3 class="card-title">
+                Catégories
+                @if(isset($restaurant))
+                    de {{ $restaurant->name }}
+                @else
+                    de tous les restaurants
+                @endif
+            </h3>
             <div>
                 @if(isset($restaurant))
-                    <a href="{{ route('restaurants.show', $restaurant->id) }}" class="btn btn-secondary me-2">
-                        <i class="bx bx-arrow-back me-1"></i> Retour au restaurant
-                    </a>
                     <a href="{{ route('restaurants.categories.create', $restaurant->id) }}" class="btn btn-primary">
                         <i class="bx bx-plus me-1"></i> Créer une catégorie
                     </a>
@@ -27,26 +31,37 @@
             </div>
         </div>
         <div class="card-body">
-            @if(isset($restaurant))
-                <div class="alert alert-info mb-4">
-                    <i class="bx bx-info-circle me-1"></i> Vous consultez les catégories du restaurant <strong>{{ $restaurant->name }}</strong>
-                </div>
-            @elseif(auth()->user()->isRestaurateur() && auth()->user()->restaurants->count() > 1)
+            @if(auth()->user()->isRestaurateur() && auth()->user()->restaurants->count() > 1)
                 <div class="mb-4">
                     <label for="restaurant-filter" class="form-label">Filtrer par restaurant</label>
-                    <form>
-                        @if(request('restaurant'))
-                            <input type="hidden" name="restaurant" value="{{ request('restaurant') }}">
-                        @endif
-                        <select id="restaurant-filter" class="form-select" onchange="this.form.submit()">
-                            <option value="#">Tous les restaurants</option>
+                    <form method="GET" action="{{ isset($restaurant) ? route('restaurants.categories.index', $restaurant->id) : route('restaurants.index') }}">
+                        <select id="restaurant-filter" name="restaurant" class="form-select" onchange="this.form.submit()">
+                            <option value="all">Tous les restaurants</option>
                             @foreach(auth()->user()->restaurants as $rest)
-                                <option value="{{ route('restaurants.categories.index', $rest->id ?? '') }}" {{ (isset($restaurant) && isset($restaurant->id) && $restaurant->id == ($rest->id ?? '')) ? 'selected' : '' }}>{{ $rest->name ?? '' }}</option>
+                                <option value="{{ $rest->id }}" {{ (isset($restaurant) && $restaurant->id == $rest->id) ? 'selected' : '' }}>{{ $rest->name }}</option>
                             @endforeach
                         </select>
+                        @if(isset($sort))
+                            <input type="hidden" name="sort" value="{{ $sort }}">
+                        @endif
                     </form>
                 </div>
             @endif
+            
+            <div class="mb-3">
+                <form method="GET" action="{{ isset($restaurant) ? route('restaurants.categories.index', $restaurant->id) : route('restaurants.index') }}" class="row g-3 align-items-end" id="sort-form">
+                    <div class="col-md-4">
+                        <label for="sort" class="form-label"><strong>Trier par</strong></label>
+                        <select class="form-select" id="sort" name="sort" onchange="document.getElementById('sort-form').submit();">
+                            <option value="name_asc" {{ isset($sort) && $sort == 'name_asc' ? 'selected' : '' }}>Nom (A-Z)</option>
+                            <option value="name_desc" {{ isset($sort) && $sort == 'name_desc' ? 'selected' : '' }}>Nom (Z-A)</option>
+                        </select>
+                    </div>
+                    @if(isset($restaurant) && $restaurant)
+                        <input type="hidden" name="restaurant" value="{{ $restaurant->id }}">
+                    @endif
+                </form>
+            </div>
 
             @if($categories->count() > 0)
                 <div class="table-responsive">

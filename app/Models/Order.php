@@ -77,9 +77,35 @@ class Order extends Model
      */
     public function items()
     {
-        return $this->belongsToMany(Item::class, 'order_items')
+        return $this->belongsToMany(Item::class, 'order_items', 'order_id', 'item_id')
             ->withPivot('quantity', 'price', 'menu_id')
-            ->withTimestamps();
+            ->withTimestamps()
+            // Spécifier toutes les colonnes explicitement pour éviter l'ambiguïté
+            ->select(
+                'items.id',
+                'items.name',
+                'items.description',
+                'items.price',
+                'items.category_id',
+                'items.restaurant_id',
+                'items.is_available',
+                'items.image',
+                'items.created_at as item_created_at',
+                'items.updated_at as item_updated_at',
+                'items.menu_id as item_menu_id', // Renommer la colonne menu_id de items
+                'order_items.menu_id as order_menu_id' // Renommer la colonne menu_id de order_items
+            );
+    }
+
+    /**
+     * Version alternative de la relation items qui évite l'ambiguïté avec menu_id
+     */
+    public function itemsWithoutAmbiguity()
+    {
+        return $this->belongsToMany(Item::class, 'order_items', 'order_id', 'item_id')
+            ->withPivot('quantity', 'price', 'menu_id')
+            ->withTimestamps()
+            ->select('items.*', 'order_items.menu_id as order_menu_id');
     }
 
     /**

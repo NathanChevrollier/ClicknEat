@@ -36,7 +36,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\ShareCategoriesWithViews::class,
+            // \App\Http\Middleware\ShareCategoriesWithViews::class, // Temporairement désactivé pour éviter l'erreur DB not found
         ],
 
         'api' => [

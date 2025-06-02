@@ -38,6 +38,15 @@
             <div class="mb-4">
                 <form action="{{ route('admin.reservations.index') }}" method="GET" class="row g-3">
                     <div class="col-md-3">
+                        <label for="search" class="form-label">Recherche</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search" name="search" placeholder="Client, restaurant, ID..." value="{{ request('search') }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bx bx-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
                         <label for="restaurant_id" class="form-label">Restaurant</label>
                         <select class="form-select" id="restaurant_id" name="restaurant_id">
                             <option value="">Tous les restaurants</option>
@@ -75,18 +84,56 @@
                 <div class="alert alert-info">
                     <i class="bx bx-info-circle me-1"></i>
                     Aucune réservation trouvée.
+                    @if(request('search') || request('status') || request('date') || request('restaurant_id'))
+                        <p class="mb-0 mt-2">Essayez de modifier vos critères de recherche ou <a href="{{ route('admin.reservations.index') }}">afficher toutes les réservations</a>.</p>
+                    @endif
                 </div>
             @else
                 <div class="table-responsive text-nowrap">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Restaurant</th>
-                                <th>Client</th>
-                                <th>Date & Heure</th>
-                                <th>Personnes</th>
+                                <th>
+                                    <a href="{{ route('admin.reservations.index', ['sort' => 'restaurant', 'direction' => (request('sort') == 'restaurant' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search'), 'status' => request('status'), 'date' => request('date'), 'restaurant_id' => request('restaurant_id')]) }}" class="text-body">
+                                        Restaurant
+                                        @if(request('sort') == 'restaurant')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reservations.index', ['sort' => 'user', 'direction' => (request('sort') == 'user' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search'), 'status' => request('status'), 'date' => request('date'), 'restaurant_id' => request('restaurant_id')]) }}" class="text-body">
+                                        Client
+                                        @if(request('sort') == 'user')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reservations.index', ['sort' => 'reservation_date', 'direction' => (request('sort') == 'reservation_date' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search'), 'status' => request('status'), 'date' => request('date'), 'restaurant_id' => request('restaurant_id')]) }}" class="text-body">
+                                        Date et heure
+                                        @if(request('sort') == 'reservation_date' || !request('sort'))
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="{{ route('admin.reservations.index', ['sort' => 'guests_number', 'direction' => (request('sort') == 'guests_number' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search'), 'status' => request('status'), 'date' => request('date'), 'restaurant_id' => request('restaurant_id')]) }}" class="text-body">
+                                        Nombre
+                                        @if(request('sort') == 'guests_number')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
                                 <th>Table</th>
-                                <th>Statut</th>
+                                <th>
+                                    <a href="{{ route('admin.reservations.index', ['sort' => 'status', 'direction' => (request('sort') == 'status' && request('direction') == 'asc') ? 'desc' : 'asc', 'search' => request('search'), 'status' => request('status'), 'date' => request('date'), 'restaurant_id' => request('restaurant_id')]) }}" class="text-body">
+                                        Statut
+                                        @if(request('sort') == 'status')
+                                            <i class="bx {{ request('direction') == 'asc' ? 'bx-sort-up' : 'bx-sort-down' }}"></i>
+                                        @endif
+                                    </a>
+                                </th>
                                 <th>Commande</th>
                                 <th>Actions</th>
                             </tr>
@@ -200,9 +247,7 @@
                     </table>
                 </div>
                 
-                <div class="mt-3">
-                    {{ $reservations->links() }}
-                </div>
+                <!-- Pas de pagination -->
             @endif
         </div>
     </div>

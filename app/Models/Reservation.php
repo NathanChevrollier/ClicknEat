@@ -110,8 +110,8 @@ class Reservation extends Model
      */
     public function canBeCancelled(): bool
     {
-        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED]) && 
-               $this->reservation_date > now()->addHours(2);
+        // Permet l'annulation de toute réservation en attente ou confirmée, sans contrainte de temps
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED]);
     }
 
     /**
@@ -121,7 +121,7 @@ class Reservation extends Model
      */
     public function canBeModified(): bool
     {
-        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED]) && 
-               $this->reservation_date > now()->addHours(2);
+        // Permet la modification de toute réservation en attente ou confirmée, sans contrainte de temps
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED]);
     }
 }
