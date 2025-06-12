@@ -102,6 +102,8 @@
                                 <th>Nom</th>
                                 <th>Capacité</th>
                                 <th>Emplacement</th>
+                                <th>Catégorie</th>
+                                <th>Accessibilité</th>
                                 <th>Disponibilité</th>
                                 <th>Restaurant</th>
                                 <th>Actions</th>
@@ -113,6 +115,14 @@
                                     <td><strong>{{ $table->name }}</strong></td>
                                     <td>{{ $table->capacity }} personnes</td>
                                     <td>{{ $table->location ?: 'Non spécifié' }}</td>
+                                    <td>{{ $table->categorie ? $table->categorie->nom : 'Non catégorisée' }}</td>
+                                    <td>
+                                        @if($table->pmr)
+                                            <span class="badge bg-primary" title="Accessible aux Personnes à Mobilité Réduite">
+                                                <i class="bx bx-wheelchair"></i>
+                                            </span>
+                                        @endif
+                                    </td>
                                     <td>
                                         @if($table->is_available)
                                             <span class="badge bg-label-success">Disponible</span>

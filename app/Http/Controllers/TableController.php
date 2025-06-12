@@ -6,6 +6,7 @@ use App\Models\Table;
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\CategorieTable;
 
 class TableController extends Controller
 {
@@ -71,13 +72,16 @@ class TableController extends Controller
     public function create(Request $request, $restaurantId)
     {
         $restaurant = Restaurant::findOrFail($restaurantId);
+        $categories = CategorieTable::all();
         
         // Vérifier que l'utilisateur est le propriétaire du restaurant ou un administrateur
         if ($restaurant->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
             abort(403, 'Vous n\'avez pas le droit d\'ajouter des tables à ce restaurant.');
         }
         
-        return view('tables.create', compact('restaurant'));
+        
+        
+        return view('tables.create', compact('restaurant', 'categories'));
     }
 
     /**
@@ -98,6 +102,8 @@ class TableController extends Controller
             'location' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'is_available' => 'boolean',
+            'pmr' => 'boolean',
+            'categorie_id' => 'required|exists:categorie_table,id',
         ]);
         
         $table = new Table([
@@ -107,6 +113,8 @@ class TableController extends Controller
             'location' => $request->location,
             'description' => $request->description,
             'is_available' => $request->has('is_available'),
+            'pmr' => $request->pmr == '1',
+            'categorie_id' => $request->categorie_id,
         ]);
         
         $table->save();
@@ -122,13 +130,14 @@ class TableController extends Controller
     {
         $restaurant = Restaurant::findOrFail($restaurantId);
         $table = Table::where('restaurant_id', $restaurantId)->findOrFail($tableId);
+        $categories = CategorieTable::all();
         
         // Vérifier que l'utilisateur est le propriétaire du restaurant ou un administrateur
         if ($restaurant->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
             abort(403, 'Vous n\'avez pas le droit de voir les détails de cette table.');
         }
         
-        return view('tables.show', compact('restaurant', 'table'));
+        return view('tables.show', compact('restaurant', 'table', 'categories'));
     }
 
     /**
@@ -138,13 +147,14 @@ class TableController extends Controller
     {
         $restaurant = Restaurant::findOrFail($restaurantId);
         $table = Table::where('restaurant_id', $restaurantId)->findOrFail($tableId);
+        $categories = CategorieTable::all();
         
         // Vérifier que l'utilisateur est le propriétaire du restaurant ou un administrateur
         if ($restaurant->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
             abort(403, 'Vous n\'avez pas le droit de modifier cette table.');
         }
-        
-        return view('tables.edit', compact('restaurant', 'table'));
+
+        return view('tables.edit', compact('restaurant', 'table', 'categories'));
     }
 
     /**
@@ -166,6 +176,8 @@ class TableController extends Controller
             'location' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'is_available' => 'boolean',
+            'pmr' => 'boolean',
+            'categorie_id' => 'required|exists:categorie_table,id',
         ]);
         
         $table->name = $request->name;
@@ -173,6 +185,8 @@ class TableController extends Controller
         $table->location = $request->location;
         $table->description = $request->description;
         $table->is_available = $request->has('is_available');
+        $table->pmr = $request->pmr == '1';
+        $table->categorie_id = $request->categorie_id;
         
         $table->save();
         
@@ -216,6 +230,7 @@ class TableController extends Controller
     public function availability(Request $request, $restaurantId)
     {
         $restaurant = Restaurant::findOrFail($restaurantId);
+        $categories = CategorieTable::all();
         
         $date = $request->input('date', date('Y-m-d'));
         $time = $request->input('time', '19:00');
@@ -225,7 +240,7 @@ class TableController extends Controller
         
         $availableTables = $restaurant->getAvailableTables($dateTime, $guests);
         
-        return view('tables.availability', compact('restaurant', 'availableTables', 'date', 'time', 'guests'));
+        return view('tables.availability', compact('restaurant', 'availableTables', 'date', 'time', 'guests', 'categories'));
     }
 
     /**
@@ -356,12 +371,15 @@ class TableController extends Controller
             'success' => true,
             'tables' => $availableTables->map(function($table) {
                 return [
-                    'id' => $table->id,
+                    'table_id' => $table->id,
                     'name' => $table->name,
                     'capacity' => $table->capacity,
+                    'pmr' => $table->pmr,
+                    'categorie_id' => $table->categorie_id,
+                    'categorie_nom' => $table->categorie ? $table->categorie->nom : null,
                     'location' => $table->location ?: '',
                     'description' => $table->description,
-                    'is_available' => true
+                    'is_available' => true,
                 ];
             }),
             'message' => $availableTables->count() > 0 

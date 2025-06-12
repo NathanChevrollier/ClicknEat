@@ -38,11 +38,53 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
+
+                        <div class="mb-3">
+                            <label for="categorie_id" class="form-label">Catégorie de table</label>
+                            <select class="form-select @error('categorie_id') is-invalid @enderror" id="categorie_id" name="categorie_id">
+                                <option value="" disabled>Sélectionner une catégorie</option>
+                                @foreach($categories as $categorie)
+                                    <option value="{{ $categorie->id }}" {{ (old('categorie_id', $table->categorie_id) == $categorie->id) ? 'selected' : '' }}>
+                                        {{ $categorie->nom }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('categorie_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="pmr" class="form-label">Accessibilité</label>
+                            <select class="form-select @error('pmr') is-invalid @enderror" id="pmr" name="pmr">
+                                <option value="0" {{ old('pmr', $table->pmr ? '1' : '0') == '0' ? 'selected' : '' }}>Table standard</option>
+                                <option value="1" {{ old('pmr', $table->pmr ? '1' : '0') == '1' ? 'selected' : '' }}>Table accessible PMR</option>
+                            </select>
+                            @error('pmr')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">Sélectionnez si cette table est accessible aux personnes à mobilité réduite.</div>
+                        </div>
                         
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
                             <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3">{{ old('description', $table->description) }}</textarea>
                             @error('description')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="categorie_id" class="form-label">Catégorie de table</label>
+                            <select class="form-select @error('categorie_id') is-invalid @enderror" id="categorie_id" name="categorie_id">
+                                <option value="" disabled>Sélectionner une catégorie</option>
+                                @foreach($categories as $categorie)
+                                    <option value="{{ $categorie->id }}" {{ (old('categorie_id', $table->categorie_id) == $categorie->id) ? 'selected' : '' }}>
+                                        {{ $categorie->nom }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('categorie_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>

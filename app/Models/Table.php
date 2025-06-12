@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Restaurant;
 use App\Models\Reservation;
+use App\Models\CategorieTable;
 use Illuminate\Support\Facades\DB;
 
 class Table extends Model
@@ -24,6 +25,8 @@ class Table extends Model
         'is_available',
         'location',
         'description',
+        'pmr',
+        'categorie_id',
     ];
 
     /**
@@ -34,6 +37,7 @@ class Table extends Model
     protected $casts = [
         'is_available' => 'boolean',
         'capacity' => 'integer',
+        'pmr' => 'boolean',
     ];
 
     /**
@@ -50,6 +54,14 @@ class Table extends Model
     public function reservations()
     {
         return $this->hasMany(Reservation::class);
+    }
+    
+    /**
+     * Obtenir la catégorie de cette table.
+     */
+    public function categorie()
+    {
+        return $this->belongsTo(CategorieTable::class, 'categorie_id');
     }
 
     /**

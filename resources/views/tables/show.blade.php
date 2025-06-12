@@ -10,7 +10,13 @@
         <div class="col-md-12">
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ $table->name }}</h5>
+                    <h5 class="mb-0">{{ $table->name }}
+                        @if($table->pmr)
+                            <span class="badge bg-primary ms-2" title="Accessible aux Personnes à Mobilité Réduite">
+                                <i class="bx bx-wheelchair"></i> PMR
+                            </span>
+                        @endif
+                    </h5>
                     <div>
                         <a href="{{ route('restaurants.tables.edit', [$restaurant->id, $table->id]) }}" class="btn btn-primary btn-sm">
                             <i class="bx bx-edit-alt me-1"></i> Modifier
@@ -37,6 +43,12 @@
                                     <span>Capacité : <strong>{{ $table->capacity }} personnes</strong></span>
                                 </div>
                                 <div class="d-flex align-items-center mb-2">
+                                    <div class="badge bg-label-info me-2">
+                                        <i class="bx bx-category"></i>
+                                    </div>
+                                    <span>Catégorie : <strong>{{ $table->categorie ? $table->categorie->nom : 'Non catégorisée' }}</strong></span>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
                                     <div class="badge bg-label-primary me-2">
                                         <i class="bx bx-map"></i>
                                     </div>
@@ -55,7 +67,16 @@
                                     </span>
                                 </div>
                             </div>
-                            
+                            <table class="table">
+                                <tr>
+                                    <td>Capacité</td>
+                                    <td>{{ $table->capacity }} personnes</td>
+                                </tr>
+                                <tr>
+                                    <td>Catégorie</td>
+                                    <td>{{ $table->categorie ? $table->categorie->nom : 'Non catégorisée' }}</td>
+                                </tr>
+                            </table>
                             @if($table->description)
                                 <div class="mt-3">
                                     <h6 class="fw-semibold">Description</h6>
